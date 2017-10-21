@@ -1,5 +1,12 @@
 # util.py
 # A small collection of useful functions
+def collapse(data):
+
+    result = ''
+    for x in data:
+        result = result + x
+    return result
+
 
 def slice(string, n):
 	""" Given a string and a number n, cuts the string up, returns a

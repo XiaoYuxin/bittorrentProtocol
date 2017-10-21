@@ -1,10 +1,11 @@
 from hashlib import md5, sha1
 from time import time
 import sys
+from util import collapse, slice
 
 
-CLIENT_NAME = "p2p_peer1"
-CLIENT_ID = "peer1"
+CLIENT_NAME = "p2p_uploader"
+CLIENT_ID = "uploader"
 CLIENT_VERSION = "0001"
 TRACKER_ADDR = '127.0.0.1'
 
@@ -18,17 +19,14 @@ def make_info_dict(file):
     piece_length = 524288	# TODO: This should change dependent on file size
 
     info = {}
-
     info["piece length"] = piece_length
-    info["length"] = len(contents.encode('utf-8'))
-    print('length: ' + str(info['length']))
+    info["length"] = len(contents)
     info["name"] = file
     info["md5sum"] = md5(contents).hexdigest()
-
     # Generate the pieces
-    #pieces = slice(contents, piece_length)
-    #pieces = [ sha1(p).digest() for p in pieces ]
-    #info["pieces"] = collapse(pieces)
+    pieces = slice(contents, piece_length)
+    pieces = [ sha1(p).digest() for p in pieces ]
+    info["pieces"] = collapse(pieces)
     return info
 
 def make_torrent_file(file = None):
@@ -40,7 +38,6 @@ def make_torrent_file(file = None):
     torrent["announce"] = TRACKER_ADDR
     torrent["creation date"] = int(time())
     torrent["created by"] = CLIENT_NAME
-    print('before slicing the file')
     torrent["info"] = make_info_dict(file)
     metaFileName = file + '.torrent'
     print('meta file name: ' + metaFileName)

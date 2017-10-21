@@ -8,9 +8,10 @@ from struct import pack, unpack
 from threading import Thread
 from time import sleep, time
 import types
+from util import collapse
 
-CLIENT_NAME = "pytorrent"
-CLIENT_ID = "PY"
+CLIENT_NAME = "p2p_peer1"
+CLIENT_ID = "peer1"
 CLIENT_VERSION = "0001"
 
 def read_torrent_file(torrent_file):
@@ -30,21 +31,27 @@ def generate_peer_id():
 
 	return "-" + CLIENT_ID + CLIENT_VERSION + "-" + random_string
 
-def generate_handshake(peer_id):
+def generate_handshake(info_hash, peer_id):
 	""" Returns a handshake. """
-
 	protocol_id = "BitTorrent protocol"
 	len_id = str(len(protocol_id))
 	reserved = "00000000"
+	return len_id + protocol_id + reserved + info_hash + peer_id
 
-	return len_id + protocol_id + reserved + peer_id
+def encode(data):
+    temp = [data[key] for key in sorted(data.keys())]
+    return collapse(temp)
 
 class Torrent():
     def __init__(self, torrent_file):
-        self.running = False
-
         self.data = read_torrent_file(torrent_file)
+        self.info_hash = sha1(encode(self.data["info"])).digest()
         self.peer_id = generate_peer_id()
-        self.handshake = generate_handshake(self.peer_id)
+        self.handshake = generate_handshake(self.info_hash, self.peer_id)
+
+    def contact_tracker(self):
+        """contact tracker to indicate the interest to download the file"""
+        return
+
 
 
