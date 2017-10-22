@@ -56,13 +56,13 @@ class TCPHandler(SocketServer.BaseRequestHandler):
         b = b''
         self.data = self.request.recv(1024).strip()
         b += self.data
-        print "{} wrote:".format(self.client_address[0])
-        print b
+        print("{} wrote:".format(self.client_address[0]))
+        print(b)
         d = json.loads(b)
-        print d
-        print type(d)
+        print(d)
+        print(type(d))
         info_hash = d['info_hash']
-        print info_hash
+        print(info_hash)
         peer_id = d['peer_id']
         ip = self.client_address[0]
         port = d['port']

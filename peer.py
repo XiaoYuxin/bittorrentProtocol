@@ -46,6 +46,7 @@ class Torrent():
     def __init__(self, torrent_file):
         self.data = read_torrent_file(torrent_file)
         self.info_hash = sha1(encode(self.data["info"])).digest()
+        self.tracker = self.data["tracker"]
         self.peer_id = generate_peer_id()
         self.handshake = generate_handshake(self.info_hash, self.peer_id)
 
