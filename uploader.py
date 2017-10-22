@@ -7,7 +7,8 @@ from util import collapse, slice
 CLIENT_NAME = "p2p_uploader"
 CLIENT_ID = "uploader"
 CLIENT_VERSION = "0001"
-TRACKER_ADDR = '127.0.0.1'
+TRACKER_IP = '127.0.0.1'
+TRACKER_PORT = 500
 
 
 def make_info_dict(file):
@@ -35,7 +36,7 @@ def make_torrent_file(file = None):
         raise TypeError("make_torrent_file requires at least one file, non given.")
 
     torrent = {}
-    torrent["tracker"] = TRACKER_ADDR
+    torrent["tracker"] = (TRACKER_IP, TRACKER_PORT)
     torrent["creation date"] = int(time())
     torrent["created by"] = CLIENT_NAME
     torrent["info"] = make_info_dict(file)
