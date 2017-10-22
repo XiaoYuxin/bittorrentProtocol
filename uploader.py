@@ -18,7 +18,7 @@ def make_info_dict(file):
     with open(file) as f:
         contents = f.read()
 
-    piece_length = 524288	# TODO: This should change dependent on file size
+    piece_length = 10	# TODO: This should change dependent on file size
 
     info = {}
     info["piece length"] = piece_length

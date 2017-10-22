@@ -79,18 +79,29 @@ class Torrent():
         self.handshake = generate_handshake(self.info_hash, self.peer_id)
         self.is_running = True
         #set of all remaining chunk numer
-        self.remaining_chunk = { key for key in range(0, self.data['info']['chunk number'])}
+        self.remaining_chunk_set = { key for key in range(0, self.data['info']['chunk number'])}
+        #set of already owned chunk num
+        self.available_chunk_set = set()
         #dict of all chunks with corresponding peers having this chunk, initially all empty list
-        self.chunk_status_list = {key : [] for key in range(0, self.data['info']['chunk number'])}
+        self.chunk_status_dict = {key : [] for key in range(0, self.data['info']['chunk number'])}
+        #dict of all real chunks data, innitially all empty
+        self.chunks_data = {key: None for key in range(0, self.data['info']['chunk number'])}
+
+
         #inform tracker about the interest
         self.update_tracker()
         #start the TCP server, listening to incoming request from other peers
         self.run_server()
         self.query_tracker_loop = Thread(target=self.query_tracker_for_status)
         self.query_tracker_loop.start()
-
-
-
+        #start send request to peers
+        #start 3 threads simultaneously
+        self.query_peer_loop_1 = Thread(target=self.client_send_request)
+        self.query_peer_loop_2 = Thread(target=self.client_send_request)
+        self.query_peer_loop_3 = Thread(target=self.client_send_request)
+        self.query_peer_loop_1.start()
+        self.query_peer_loop_2.start()
+        self.query_peer_loop_3.start()
 
     def update_tracker(self):
         #send query type 1 to tracker, when
@@ -98,7 +109,8 @@ class Torrent():
         #2) every time after it finish download a chunk, update the status
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.tracker_ip, self.tracker_port))
-        encoded = encode_message(type = 1, chunks=[], ip =  self.myip, port = SERVER_PORT)
+        formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in self.available_chunk_set]
+        encoded = encode_message(type = 1, chunks=formated_available_chunk, ip =  self.myip, port = SERVER_PORT)
         s.send(encoded)
         response = s.recv(1024)
         s.close()
@@ -106,8 +118,8 @@ class Torrent():
 
     def query_tracker_for_status(self):
         #update the status for all the chunks that have not downloaded yet
-        while self.is_running and len(self.remaining_chunk) > 0:
-            chunks_to_query = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in self.remaining_chunk]
+        while self.is_running and len(self.remaining_chunk_set) > 0:
+            chunks_to_query = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in self.remaining_chunk_set]
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.tracker_ip, self.tracker_port))
             encoded = encode_message(type=2, chunks=chunks_to_query)
@@ -130,20 +142,57 @@ class Torrent():
             server_loop = Thread(target=self.server_handle_request,  args=(conn,))
             server_loop.start()
 
+    """handle request from other peer"""
     def server_handle_request(self, conn):
-        #TODO:handle individual request from other peer, then terminate the thread
-        while 1:
-            data = conn.recv(1024)
-            if not data: break
-            conn.sendall(data)
+        formated_filename = conn.recv(1024)
+        chunknum = deformat_filename_chunk_num(formated_filename)['chunknum']
+        conn.sendall(self.chunks_data[chunknum])
         return
 
+    def generate_rand_chunk_num(self):
+        result = {}
+        exclude_set = set()
+        while True:
+            chunk_num = random.choice(tuple(self.remaining_chunk_set.difference(exclude_set)))
+            if len(self.chunk_status_dict[chunk_num]) == 0:
+                exclude_set.add(chunk_num)
+                if len(self.remaining_chunk_set.difference(exclude_set)) == 0:
+                    return result
+            else:
+                peer = random.choice(self.chunk_status_dict[chunk_num])
+                result['peer_ip'] = peer[0]
+                result['peer_port'] = peer[1]
+                result['chunknum'] = chunk_num
+                return result
+
+    """send request to other peer"""
     def client_send_request(self):
-        #TODO: send download request for each chunk, after downloading one chunk, need to update the tracker
-        return
+        while(len(self.remaining_chunk_set) > 0):
+            rand_chunk = self.generate_rand_chunk_num()
+            if rand_chunk:
+                self.remaining_chunk_set.remove(rand_chunk['chunknum'])
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect((rand_chunk['peer_ip'], rand_chunk['peer_port']))
+                s.send(format_filename_chunk_num(self.filename, rand_chunk['chunknum']))
+                response = s.recv(1024)
+                print('chunk get is : ' + response)
+                self.chunks_data[rand_chunk['chunknum']] = response
+                self.available_chunk_set.add(rand_chunk['chunknum'])
+                #update tracker for the new chunk
+                self.update_tracker()
+
+
+    def perform_send_request(self, peer_ip, peer_port, chunk_num):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((peer_ip, peer_port))
+        s.send(format_filename_chunk_num(self.filename, chunk_num))
+        response = s.recv(1024)
+        #TODO: convert into chunk data
+        return response
+
 
     def update_status_list(self, updated_list):
         deformated_update_list = {deformat_filename_chunk_num(key)[1] : updated_list[key] for key in updated_list.keys()}
         for each_chunk in deformated_update_list.keys():
-            self.chunk_status_list[each_chunk] = deformated_update_list['each_chunk']
+            self.chunk_status_dict[each_chunk] = deformated_update_list['each_chunk']
 
