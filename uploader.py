@@ -35,7 +35,7 @@ def make_torrent_file(file = None):
         raise TypeError("make_torrent_file requires at least one file, non given.")
 
     torrent = {}
-    torrent["announce"] = TRACKER_ADDR
+    torrent["tracker"] = TRACKER_ADDR
     torrent["creation date"] = int(time())
     torrent["created by"] = CLIENT_NAME
     torrent["info"] = make_info_dict(file)
