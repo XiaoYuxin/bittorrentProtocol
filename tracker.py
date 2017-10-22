@@ -5,33 +5,46 @@ from threading import Thread
 from socket import inet_aton
 import SocketServer
 import json
+import util
 
 
-def decode_request(message):
-    """ Return the decoded request string. """
-    b = b''
-    b += message
-    d = json.loads(message)
-    return d;
+def add_file_chunk(filename, chunk_num):
+    if filename in files:
+        if chunk_num not in files[filename]:
+            files[filename].append(chunk_num)
+    else:
+        files[filename] = []
+        files[filename].append(chunk_num)
 
+def delete_file_chunk(filename, chunk_num):
+    if filename in files:
+        if chunk_num in files[filename]:
+            files[filename].remove(chunk_num)
+        if files[filename] == []:
+            files.pop(filename, None)
 
 def add_peer(info_hash, ip, port):
     """ Add the peer to the peer list. """
 
     # If the file exists in the file list, just add the peer
-    if info_hash in torrents.keys():
+    if info_hash in torrents:
         # Only add the peer if they're not already in the database
         if (ip, port) not in torrents[info_hash]:
             torrents[info_hash].append((ip, port))
     # Otherwise, add the info_hash and the peer
     else:
+        torrents[info_hash] = []
         torrents[info_hash] = [(ip, port)]
 
 
 def delete_peer(ip, port):
-    for info_hash in torrents.keys():
+    for info_hash, value in torrents.items():
         if (ip, port) in torrents[info_hash]:
             torrents[info_hash].remove((ip, port))
+        if (value == []):
+            del torrents[info_hash]
+            data = info_hash.split(':')
+            delete_file_chunk(data[1], int(data[3]))
 
 
 def peer_list(peer_list):
@@ -64,30 +77,46 @@ def generate_error():
     error = json.dumps(message)
     return error.encode('utf8');
 
+
 class TCPHandler(SocketServer.BaseRequestHandler):
     def handle(self):
 
         # self.request is the TCP socket connected to the client
 
         self.data = self.request.recv(1024).strip()
-        message = decode_request(self.data)
-        print("{} wrote:".format(self.client_address[0]))
-        print("{} wrote:".format(self.client_address[1]))
+        message = util.decode_request(self.data)
 
-        if message.type == 0:
-            delete_peer(message.ip, message.port);
-            self.request.sendall(generate_ack())
-        elif message.type == 1:
-            for chunk in message.chunks:
-                add_peer(chunk, message.ip, message.port)
-            self.request.sendall(generate_ack())
-        elif message.type == 2:
-            peer_list = make_peer_list(message.chunks)
-            data = json.dumps(peer_list)
-            # just send back the same data, but upper-cased
-            self.request.sendall(data.encode('utf8'))
-        else:
+        if 'type' not in message:
             self.request.sendall(generate_error())
+        else:
+            if message['type'] == 0: # exit the network
+                delete_peer(message['ip'], int(message['port']))
+                print(torrents)
+                self.request.sendall(generate_ack())
+            elif message['type'] == 1: # inform and update
+                if 'chunk_num' in message.keys():
+                    message['filename'] = message['chunk_num']
+                for chunk in message['chunks']:
+                    add_peer(chunk, message['ip'], message['port'])
+                    data = chunk.split(':')
+                    add_file_chunk(data[1], int(data[3]))
+                print(files)
+                print(torrents)
+                self.request.sendall(generate_ack())
+            elif message['type'] == 2: # query for content
+                peers = make_peer_list(message['chunks'])
+                self.request.sendall(util.encode_request(peers))
+            elif message['type'] == 3: # query for a list of files available
+                file_list = files.keys()
+                self.request.sendall(util.encode_request(file_list))
+            elif message['type'] == 4: # query for a specific file
+                if (message['filename'] in files):
+                    chunk_list = files[message['filename']]
+                else:
+                    chunk_list = []
+                self.request.sendall(util.encode_request(chunk_list))
+            else:
+                self.request.sendall(generate_error())
         self.request.close()
 
 
@@ -99,6 +128,7 @@ if __name__ == "__main__":
     HOST, PORT = "localhost", 9999
 
     torrents = {}
+    files = {}
 
     # Create the server, binding to localhost on port 9999
     server = ThreadedTCPServer((HOST, PORT), TCPHandler)

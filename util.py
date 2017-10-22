@@ -1,5 +1,7 @@
 # util.py
 # A small collection of useful functions
+import json
+
 def collapse(data):
 
     result = ''
@@ -25,3 +27,14 @@ def slice(string, n):
 		pass
 
 	return temp
+
+def decode_request(message):
+    """ Return the decoded request string. """
+    b = b''
+    b += message
+    data = json.loads(b)
+    return data;
+
+def encode_request(message):
+	data = json.dumps(message)
+	return data.encode('utf8')
