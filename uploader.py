@@ -2,6 +2,7 @@ from hashlib import md5, sha1
 from time import time
 import sys
 from util import collapse, slice
+import math
 
 
 CLIENT_NAME = "p2p_uploader"
@@ -22,6 +23,7 @@ def make_info_dict(file):
     info = {}
     info["piece length"] = piece_length
     info["length"] = len(contents)
+    info["chunk number"] = math.ceil(len(contents) / piece_length * 1.0)
     info["name"] = file
     info["md5sum"] = md5(contents).hexdigest()
     # Generate the pieces
