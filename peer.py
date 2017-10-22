@@ -8,7 +8,7 @@ from struct import pack, unpack
 from threading import Thread
 from time import sleep, time
 import types
-from util import collapse
+from util import collapse, encode_request, decode_request
 from bencode import encode, decode
 import random
 
@@ -42,17 +42,6 @@ def generate_handshake(info_hash, peer_id):
 	reserved = "00000000"
 	return len_id + protocol_id + reserved + info_hash + peer_id
 
-
-def encode_message(type=None, chunks=None, ip=None, port=None):
-    #TODO: implement encode message
-    encoded = None
-    return encoded
-
-def decode_message(raw_message):
-    #TODO: implement decode message
-    decoded = {}
-    decoded['queried_chunk_list'] = {}
-    return decoded
 
 def format_filename_chunk_num(filename, chunk_num):
     return 'filename:' + filename + 'chunknum:' + chunk_num
@@ -103,18 +92,10 @@ class Torrent():
         self.query_peer_loop_2.start()
         self.query_peer_loop_3.start()
 
-    def update_tracker(self):
-        #send query type 1 to tracker, when
-        #1) innitially indicate interest to tracker
-        #2) every time after it finish download a chunk, update the status
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.tracker_ip, self.tracker_port))
-        formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in self.available_chunk_set]
-        encoded = encode_message(type = 1, chunks=formated_available_chunk, ip =  self.myip, port = SERVER_PORT)
-        s.send(encoded)
-        response = s.recv(1024)
-        s.close()
-        return
+    def update_status_list(self, updated_list):
+        deformated_update_list = {deformat_filename_chunk_num(key)[1] : updated_list[key] for key in updated_list.keys()}
+        for each_chunk in deformated_update_list.keys():
+            self.chunk_status_dict[each_chunk] = deformated_update_list['each_chunk']
 
     def query_tracker_for_status(self):
         #update the status for all the chunks that have not downloaded yet
@@ -122,15 +103,14 @@ class Torrent():
             chunks_to_query = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in self.remaining_chunk_set]
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.tracker_ip, self.tracker_port))
-            encoded = encode_message(type=2, chunks=chunks_to_query)
+            encoded = encode_request({'type': 2, 'chunks': chunks_to_query})
             s.send(encoded)
             response = s.recv(1024)
-            status_list_from_tracker = decode_message(response)['queried_chunk_list']
+            status_list_from_tracker = decode_request(response)
             self.update_status_list(status_list_from_tracker)
             s.close()
             #check the status for every 5 sec
             sleep(SLEEP_TIME)
-
 
     def run_server(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -165,6 +145,19 @@ class Torrent():
                 result['chunknum'] = chunk_num
                 return result
 
+    def update_tracker(self):
+        #send query type 1 to tracker, when
+        #1) innitially indicate interest to tracker
+        #2) every time after it finish download a chunk, update the status
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.tracker_ip, self.tracker_port))
+        formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in self.available_chunk_set]
+        encoded = encode_request({'type': 1, 'chunks': formated_available_chunk, 'ip' :  self.myip, 'port': SERVER_PORT})
+        s.send(encoded)
+        response = s.recv(1024)
+        s.close()
+        return
+
     """send request to other peer"""
     def client_send_request(self):
         while(len(self.remaining_chunk_set) > 0):
@@ -182,17 +175,11 @@ class Torrent():
                 self.update_tracker()
 
 
-    def perform_send_request(self, peer_ip, peer_port, chunk_num):
+    """contact tracker to exit"""
+    def exit(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((peer_ip, peer_port))
-        s.send(format_filename_chunk_num(self.filename, chunk_num))
-        response = s.recv(1024)
-        #TODO: convert into chunk data
-        return response
-
-
-    def update_status_list(self, updated_list):
-        deformated_update_list = {deformat_filename_chunk_num(key)[1] : updated_list[key] for key in updated_list.keys()}
-        for each_chunk in deformated_update_list.keys():
-            self.chunk_status_dict[each_chunk] = deformated_update_list['each_chunk']
+        s.connect((self.tracker_ip, self.tracker_port))
+        encoded = encode_request({'type': 0,'ip' :  self.myip, 'port': SERVER_PORT})
+        s.send(encoded)
+        s.close()
 
