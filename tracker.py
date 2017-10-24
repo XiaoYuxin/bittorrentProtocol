@@ -13,15 +13,16 @@ def add_file_chunk(filename, chunk_num):
         if chunk_num not in files[filename]:
             files[filename].append(chunk_num)
     else:
-        files[filename] = []
-        files[filename].append(chunk_num)
+        files[filename] = [chunk_num]
+
 
 def delete_file_chunk(filename, chunk_num):
     if filename in files:
         if chunk_num in files[filename]:
             files[filename].remove(chunk_num)
-        if files[filename] == []:
+        if files[filename] is []:
             files.pop(filename, None)
+
 
 def add_peer(info_hash, ip, port):
     """ Add the peer to the peer list. """
@@ -33,26 +34,25 @@ def add_peer(info_hash, ip, port):
             torrents[info_hash].append((ip, port))
     # Otherwise, add the info_hash and the peer
     else:
-        torrents[info_hash] = []
         torrents[info_hash] = [(ip, port)]
 
 
 def delete_peer(ip, port):
     for info_hash, value in torrents.items():
-        if (ip, port) in torrents[info_hash]:
-            torrents[info_hash].remove((ip, port))
-        if (value == []):
-            del torrents[info_hash]
+        if (ip, port) in value:
+            value.remove((ip, port))
+        if value is []:
+            torrents.pop(info_hash, None)
             data = info_hash.split(':')
             delete_file_chunk(data[1], int(data[3]))
 
 
-def peer_list(peer_list):
+def expand_peer_list(peer_list):
     """ Return an expanded peer list suitable for the client, given the peer list. """
 
     peers = []
     for peer in peer_list:
-        p = {}
+        p = dict()
         p["ip"] = peer[0]
         p["port"] = int(peer[1])
         peers.append(p)
@@ -60,7 +60,7 @@ def peer_list(peer_list):
 
 
 def make_peer_list(file_chunks):
-    peer_list = {}
+    peer_list = dict()
     for info_hash in file_chunks:
         peer_list[info_hash] = torrents[info_hash]
     return peer_list
@@ -69,13 +69,13 @@ def make_peer_list(file_chunks):
 def generate_ack():
     message = {'message': 'successful'}
     ack = json.dumps(message)
-    return ack.encode('utf8');
+    return ack.encode('utf8')
 
 
 def generate_error():
     message = {'message': 'invalid type'}
     error = json.dumps(message)
-    return error.encode('utf8');
+    return error.encode('utf8')
 
 
 class TCPHandler(SocketServer.BaseRequestHandler):
@@ -83,17 +83,17 @@ class TCPHandler(SocketServer.BaseRequestHandler):
 
         # self.request is the TCP socket connected to the client
 
-        self.data = self.request.recv(1024).strip()
-        message = util.decode_request(self.data)
+        data = self.request.recv(1024).strip()
+        message = util.decode_request(data)
 
         if 'type' not in message:
             self.request.sendall(generate_error())
         else:
-            if message['type'] == 0: # exit the network
+            if message['type'] == 0:  # exit the network
                 delete_peer(message['ip'], int(message['port']))
                 print(torrents)
                 self.request.sendall(generate_ack())
-            elif message['type'] == 1: # inform and update
+            elif message['type'] == 1:  # inform and update
                 if 'chunk_num' in message.keys():
                     message['filename'] = message['chunk_num']
                 for chunk in message['chunks']:
@@ -103,14 +103,14 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 print(files)
                 print(torrents)
                 self.request.sendall(generate_ack())
-            elif message['type'] == 2: # query for content
+            elif message['type'] == 2:  # query for content
                 peers = make_peer_list(message['chunks'])
                 self.request.sendall(util.encode_request(peers))
-            elif message['type'] == 3: # query for a list of files available
+            elif message['type'] == 3:  # query for a list of files available
                 file_list = files.keys()
                 self.request.sendall(util.encode_request(file_list))
-            elif message['type'] == 4: # query for a specific file
-                if (message['filename'] in files):
+            elif message['type'] == 4:  # query for a specific file
+                if message['filename'] in files:
                     chunk_list = files[message['filename']]
                 else:
                     chunk_list = []
