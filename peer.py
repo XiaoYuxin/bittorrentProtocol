@@ -19,7 +19,7 @@ CLIENT_NAME = "p2p_peer1"
 CLIENT_ID = "peer1"
 CLIENT_VERSION = "0001"
 SLEEP_TIME = 5
-SERVER_PORT = 50002
+SERVER_PORT = 49981
 
 
 # CLIENT_NAME = "p2p_uploa#der"
@@ -99,10 +99,10 @@ def format_filename_chunk_num(filename, chunk_num):
 
 def deformat_filename_chunk_num(formated_name):
     splited = formated_name.split(':')
-    result = dict()
+    result = {}
     result['filename'] = splited[1]
     result['chunknum'] = int(splited[3])
-    return result
+    return [splited[1], int(splited[3])]
 
 
 class Torrent:
@@ -121,7 +121,7 @@ class Torrent:
         self.is_running = None
         self.remaining_chunk_set = None
         self.available_chunk_set = None
-        self.chunk_status_dict = None
+        self.chunk_status_dict = dict()
         self.chunks_data = None
         self.query_peer_loop_1 = None
         self.query_peer_loop_2 = None
@@ -148,10 +148,12 @@ class Torrent:
         self.is_running = True
         # set of all remaining chunk numer
         self.remaining_chunk_set = {key for key in range(0, data['info']['chunk number'])}
+        print('remaining chunk set: ' + str(len(self.remaining_chunk_set)))
         # set of already owned chunk num
         self.available_chunk_set = set()
         # dict of all chunks with corresponding peers having this chunk, initially all empty list
         self.chunk_status_dict = {key: [] for key in range(0, data['info']['chunk number'])}
+
         # dict of all real chunks data, innitially all empty
         self.chunks_data = {key: None for key in range(0, data['info']['chunk number'])}
 
@@ -171,11 +173,16 @@ class Torrent:
 
     def update_status_list(self, updated_list):
         deformated_update_list = {deformat_filename_chunk_num(key)[1]: updated_list[key] for key in updated_list.keys()}
+        print('dfjdlskgjlkgjlsf')
+        print(deformated_update_list)
         for each_chunk in deformated_update_list.keys():
-            self.chunk_status_dict[each_chunk] = deformated_update_list['each_chunk']
+            #print(deformated_update_list[each_chunk])
+            self.chunk_status_dict[each_chunk] = deformated_update_list[each_chunk]
+
 
     def query_tracker_for_status(self):
         # update the status for all the chunks that have not downloaded yet
+        print('before connecting to tracker')
         while self.is_running and len(self.remaining_chunk_set) > 0:
             chunks_to_query = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
                                self.remaining_chunk_set]
@@ -184,11 +191,27 @@ class Torrent:
             encoded = encode_request({'type': 2, 'chunks': chunks_to_query})
             s.send(('%16s' % (len(encoded))).encode('utf-8'))
             s.send(encoded)
-            response = s.recv(1024)
-            status_list_from_tracker = decode_request(response)
+
+            length = int(s.recv(16).decode('utf-8'))
+            print('receiving length from tracker: ' + str(length))
+            data = b''
+            while len(data) < length:
+                newdata = s.recv(1024)
+                data += newdata
+            print(len(data))
+            b = b''
+            b += data
+
+            #status_list_from_tracker = decode_request(data)
+            status_list_from_tracker= json.loads(b)
+
+
+            #status_list_from_tracker = decode_request(response)
+            print('before update status list')
             self.update_status_list(status_list_from_tracker)
             s.close()
             # check the status for every 5 sec
+            #print(self.chunk_status_dict)
             sleep(SLEEP_TIME)
 
     def update_tracker(self):
@@ -222,7 +245,7 @@ class Torrent:
     def server_handle_request(self, conn):
         print('handling request from another server')
         formated_filename = conn.recv(1024)
-        chunknum = deformat_filename_chunk_num(formated_filename)['chunknum']
+        chunknum = deformat_filename_chunk_num(formated_filename)[1]
         print('handling request for chunk: ' + chunknum)
         conn.sendall(self.chunks_data[chunknum])
         return
@@ -232,6 +255,8 @@ class Torrent:
         exclude_set = set()
         while True:
             chunk_num = random.choice(tuple(self.remaining_chunk_set.difference(exclude_set)))
+            #print(chunk_num)
+            #print(self.chunk_status_dict)
             if len(self.chunk_status_dict[chunk_num]) == 0:
                 exclude_set.add(chunk_num)
                 if len(self.remaining_chunk_set.difference(exclude_set)) == 0:
@@ -247,10 +272,15 @@ class Torrent:
     """send request to other peer"""
 
     def client_send_request(self):
+        print('remaining chunk set')
+        #print(self.remaining_chunk_set)
         while len(self.remaining_chunk_set) > 0:
             rand_chunk = self.generate_rand_chunk_num()
+            #print('rand chunk')
+            #print(rand_chunk)
             if rand_chunk:
-                print('requesting for chunk : '+ rand_chunk)
+
+                print('requesting for chunk : '+ str(rand_chunk['chunknum']))
                 self.remaining_chunk_set.remove(rand_chunk['chunknum'])
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((rand_chunk['peer_ip'], rand_chunk['peer_port']))
