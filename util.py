@@ -31,9 +31,10 @@ def slice_str(string, n):
 
 def decode_request(message):
     """ Return the decoded request string. """
-    b = b''
-    b += message
-    data = json.loads(b)
+    # b = b''
+    # b += message
+    message = message.decode('utf8')
+    data = json.loads(message)
     return data
 
 
