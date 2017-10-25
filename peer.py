@@ -148,7 +148,7 @@ class Torrent:
         self.is_running = True
         # set of all remaining chunk numer
         self.remaining_chunk_set = {key for key in range(0, data['info']['chunk number'])}
-        print('remaining chunk set: ' + str(len(self.remaining_chunk_set)))
+        #print('remaining chunk set: ' + str(len(self.remaining_chunk_set)))
         # set of already owned chunk num
         self.available_chunk_set = set()
         # dict of all chunks with corresponding peers having this chunk, initially all empty list
@@ -170,11 +170,21 @@ class Torrent:
         self.query_peer_loop_1.start()
         self.query_peer_loop_2.start()
         self.query_peer_loop_3.start()
+        self.query_peer_loop_1.join()
+        self.query_peer_loop_2.join()
+        self.query_peer_loop_3.join()
+        self.write_into_file()
+
+    def write_into_file(self):
+        with open(self.filename, "wb") as data_file:
+            for key, value in self.chunks_data.items():
+                data_file.write(value)
+
 
     def update_status_list(self, updated_list):
         deformated_update_list = {deformat_filename_chunk_num(key)[1]: updated_list[key] for key in updated_list.keys()}
-        print('dfjdlskgjlkgjlsf')
-        print(deformated_update_list)
+        #print('dfjdlskgjlkgjlsf')
+        #print(deformated_update_list)
         for each_chunk in deformated_update_list.keys():
             #print(deformated_update_list[each_chunk])
             self.chunk_status_dict[each_chunk] = deformated_update_list[each_chunk]
@@ -226,7 +236,6 @@ class Torrent:
         s.send(('%16s' % (len(encoded))).encode('utf-8'))
         s.send(encoded)
         response = s.recv(1024)
-        print(response)
         s.close()
         return
 
@@ -264,6 +273,9 @@ class Torrent:
             else:
                 peer = random.choice(self.chunk_status_dict[chunk_num])
                 result['peer_ip'] = peer[0]
+                if peer[0] == self.myip:
+                    result = {}
+                    continue
                 result['peer_port'] = peer[1]
                 result['chunknum'] = chunk_num
                 return result
@@ -279,14 +291,14 @@ class Torrent:
             #print('rand chunk')
             #print(rand_chunk)
             if rand_chunk:
-
-                print('requesting for chunk : '+ str(rand_chunk['chunknum']))
                 self.remaining_chunk_set.remove(rand_chunk['chunknum'])
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((rand_chunk['peer_ip'], rand_chunk['peer_port']))
-                s.send(format_filename_chunk_num(self.filename, rand_chunk['chunknum']))
+                print('send request: ')
+                print(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
+                s.send(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
                 response = s.recv(1024)
-                print('chunk get is : ' + response)
+                print('chunk get is : ' + str(response))
                 self.chunks_data[rand_chunk['chunknum']] = response
                 self.available_chunk_set.add(rand_chunk['chunknum'])
                 # update tracker for the new chunk
