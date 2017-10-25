@@ -19,7 +19,7 @@ CLIENT_NAME = "p2p_peer1"
 CLIENT_ID = "peer1"
 CLIENT_VERSION = "0001"
 SLEEP_TIME = 5
-SERVER_PORT = 50004
+SERVER_PORT = 50002
 
 
 # CLIENT_NAME = "p2p_uploa#der"
@@ -72,24 +72,6 @@ def read_torrent_file(torrent_file):
 
     with open(torrent_file, 'rb') as file:
         return json.loads((file.read().decode('utf-8')))
-
-
-def update_tracker(filename, available_chunk_set, myip):
-    # send query type 1 to tracker, when
-    # 1) innitially indicate interest to tracker
-    # 2) every time after it finish download a chunk, update the status
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((TRACKER_IP, TRACKER_PORT))
-    formated_available_chunk = [format_filename_chunk_num(filename, chunk_num) for chunk_num in
-                                available_chunk_set]
-    encoded = encode_request({'type': 1, 'chunks': formated_available_chunk, 'ip': myip, 'port': SERVER_PORT})
-    s.send(('%16s' % (len(encoded))).encode('utf-8'))
-    s.send(encoded)
-    response = s.recv(1024)
-    print(response)
-    s.close()
-    return
-
 
 def generate_peer_id():
     """ Returns a 20-byte peer id. """
@@ -152,7 +134,7 @@ class Torrent:
         self.available_chunk_set = []
         for i in range(0, chunk_num):
             self.available_chunk_set.append(i)
-        update_tracker(self.filename, self.available_chunk_set, self.myip)
+        self.update_tracker()
 
     def download(self, torrent_file):
         data = read_torrent_file(torrent_file)
@@ -174,7 +156,7 @@ class Torrent:
         self.chunks_data = {key: None for key in range(0, data['info']['chunk number'])}
 
         # inform tracker about the interest
-        update_tracker(self.filename, self.available_chunk_set, self.myip)
+        self.update_tracker()
         # start the TCP server, listening to incoming request from other peers
         query_tracker_loop = Thread(target=self.query_tracker_for_status)
         query_tracker_loop.start()
@@ -200,6 +182,7 @@ class Torrent:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.tracker_ip, self.tracker_port))
             encoded = encode_request({'type': 2, 'chunks': chunks_to_query})
+            s.send(('%16s' % (len(encoded))).encode('utf-8'))
             s.send(encoded)
             response = s.recv(1024)
             status_list_from_tracker = decode_request(response)
