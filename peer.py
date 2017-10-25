@@ -164,19 +164,20 @@ class Torrent:
         # start send request to peers
         # start 3 threads simultaneously
         self.query_peer_loop_1 = Thread(target=self.client_send_request)
-        self.query_peer_loop_2 = Thread(target=self.client_send_request)
-        self.query_peer_loop_3 = Thread(target=self.client_send_request)
+        #self.query_peer_loop_2 = Thread(target=self.client_send_request)
+        #self.query_peer_loop_3 = Thread(target=self.client_send_request)
         self.query_peer_loop_1.start()
-        self.query_peer_loop_2.start()
-        self.query_peer_loop_3.start()
+        #self.query_peer_loop_3.start()
         self.query_peer_loop_1.join()
-        self.query_peer_loop_2.join()
-        self.query_peer_loop_3.join()
+        #self.query_peer_loop_2.join()
+        #self.query_peer_loop_3.join()
         self.write_into_file()
 
     def write_into_file(self):
         with open(self.filename, "wb") as data_file:
             for key, value in self.chunks_data.items():
+                print(key)
+                print(value)
                 data_file.write(value)
 
 
@@ -301,7 +302,7 @@ class Torrent:
 
                 length = int(s.recv(16).decode('utf-8'))
                 # print(length)
-                data = ""
+                data = b''
                 while len(data) < length:
                     newdata = s.recv(1024)
                     data += newdata
