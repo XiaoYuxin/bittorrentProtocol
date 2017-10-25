@@ -33,7 +33,7 @@ def decode_request(message):
     """ Return the decoded request string. """
     # b = b''
     # b += message
-    message = message.decode('utf8')
+    message = message.decode('utf-8')
     data = json.loads(message)
     return data
 
@@ -41,4 +41,4 @@ def decode_request(message):
 def encode_request(message):
     """ Return the encoded request dict """
     data = json.dumps(message)
-    return data.encode('utf8')
+    return data.encode('utf-8')

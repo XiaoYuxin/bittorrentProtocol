@@ -63,6 +63,7 @@ def make_peer_list(file_chunks):
     peer_list = dict()
     for info_hash in file_chunks:
         peer_list[info_hash] = torrents[info_hash]
+    print(peer_list)
     return peer_list
 
 
@@ -113,7 +114,10 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 self.request.sendall(generate_ack())
             elif message['type'] == 2:  # query for content
                 peers = make_peer_list(message['chunks'])
-                self.request.sendall(util.encode_request(peers))
+                print(peers)
+                data = util.encode_request(peers)
+                self.request.sendall(('%16s' % (len(data))).encode('utf-8'))
+                self.request.sendall(data)
             elif message['type'] == 3:  # query for a list of files available
                 file_list = files.keys()
                 self.request.sendall(util.encode_request(file_list))
