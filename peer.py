@@ -124,34 +124,59 @@ def deformat_filename_chunk_num(formated_name):
 
 
 class Torrent:
-    def __init__(self, torrent_file):
-        self.data = read_torrent_file(torrent_file)
-        self.info_hash = self.data["info"]
-        self.tracker_ip = self.data["tracker"][0]
-        self.tracker_port = self.data["tracker"][1]
-        self.filename = self.data['info']['name']
+    def __init__(self):
         self.myip = ([l for l in (
             [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
                 [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
                  [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
+        self.info_hash = None
+        self.tracker_ip = None
+        self.tracker_port = None
+        self.filename = None
+        self.peer_id = None
+        self.is_running = None
+        self.remaining_chunk_set = None
+        self.available_chunk_set = None
+        self.chunk_status_dict = None
+        self.chunks_data = None
+        self.query_peer_loop_1 = None
+        self.query_peer_loop_2 = None
+        self.query_peer_loop_3 = None
+
+    def upload(self, file):
+        chunk_num = make_torrent_file(filename)
+        print('finish generating torrent file')
+        self.filename = file
+        self.available_chunk_set = []
+        for i in range(0, chunk_num):
+            self.available_chunk_set.append(i)
+        update_tracker(self.filename, self.available_chunk_set, self.myip)
+
+    def download(self, torrent_file):
+        data = read_torrent_file(torrent_file)
+        self.info_hash = data["info"]
+        self.tracker_ip = data["tracker"][0]
+        self.tracker_port = data["tracker"][1]
+        self.filename = data['info']['name']
+
         self.peer_id = generate_peer_id()
         # self.handshake = generate_handshake(self.info_hash, self.peer_id)
         self.is_running = True
         # set of all remaining chunk numer
-        self.remaining_chunk_set = {key for key in range(0, self.data['info']['chunk number'])}
+        self.remaining_chunk_set = {key for key in range(0, data['info']['chunk number'])}
         # set of already owned chunk num
         self.available_chunk_set = set()
         # dict of all chunks with corresponding peers having this chunk, initially all empty list
-        self.chunk_status_dict = {key: [] for key in range(0, self.data['info']['chunk number'])}
+        self.chunk_status_dict = {key: [] for key in range(0, data['info']['chunk number'])}
         # dict of all real chunks data, innitially all empty
-        self.chunks_data = {key: None for key in range(0, self.data['info']['chunk number'])}
+        self.chunks_data = {key: None for key in range(0, data['info']['chunk number'])}
 
         # inform tracker about the interest
-        update_tracker(self.filename, self.available_chunk_set, self.myip)
+        update_tracker(filename, self.available_chunk_set, self.myip)
         # start the TCP server, listening to incoming request from other peers
         self.run_server()
-        self.query_tracker_loop = Thread(target=self.query_tracker_for_status)
-        self.query_tracker_loop.start()
+        query_tracker_loop = Thread(target=self.query_tracker_for_status)
+        query_tracker_loop.start()
         # start send request to peers
         # start 3 threads simultaneously
         self.query_peer_loop_1 = Thread(target=self.client_send_request)
@@ -181,6 +206,22 @@ class Torrent:
             s.close()
             # check the status for every 5 sec
             sleep(SLEEP_TIME)
+
+    def update_tracker(self):
+        # send query type 1 to tracker, when
+        # 1) innitially indicate interest to tracker
+        # 2) every time after it finish download a chunk, update the status
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((TRACKER_IP, TRACKER_PORT))
+        formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
+                                    self.available_chunk_set]
+        encoded = encode_request({'type': 1, 'chunks': formated_available_chunk, 'ip': self.myip, 'port': SERVER_PORT})
+        s.send(('%16s' % (len(encoded))).encode('utf-8'))
+        s.send(encoded)
+        response = s.recv(1024)
+        print(response)
+        s.close()
+        return
 
     def run_server(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -246,6 +287,7 @@ class Torrent:
 
 print('starting: ')
 """ Start  generating torrent file. """
+torrent = Torrent()
 while True:
     print('1.upload 2.download')
     option = int(sys.stdin.readline())
@@ -253,16 +295,11 @@ while True:
         print('enter file name: ')
         line = sys.stdin.readline()
         print('getting file name: ' + line)
-        filename = line.strip()
-        chunk_num = make_torrent_file(filename)
-        print('finish generating torrent file')
-        myip = ([l for l in (
-            [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
-                [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
-                 [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
-        available = []
-        for i in range(0, chunk_num):
-            available.append(i)
-        update_tracker(filename, available, myip)
+        file = line.strip()
+        torrent.upload(file)
     else:
-        Torrent('picture.jpg.torrent')
+        print('enter torrent file name: ')
+        line = sys.stdin.readline()
+        print('getting torrent file name: ' + line)
+        file = line.strip()
+        torrent.download(file)
