@@ -82,8 +82,15 @@ class TCPHandler(SocketServer.BaseRequestHandler):
     def handle(self):
 
         # self.request is the TCP socket connected to the client
+        length = int(self.request.recv(16).decode('utf-8'))
+        print(length)
 
-        data = self.request.recv(1024).strip()
+        data = ""
+        while len(data) < length:
+            newdata = self.request.recv(1024)
+            data += newdata
+
+        print(len(data))
         message = util.decode_request(data)
 
         if 'type' not in message:
@@ -93,6 +100,7 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 delete_peer(message['ip'], int(message['port']))
                 print(torrents)
                 self.request.sendall(generate_ack())
+                print('Type 0')
             elif message['type'] == 1:  # inform and update
                 if 'chunk_num' in message.keys():
                     message['filename'] = message['chunk_num']
@@ -100,8 +108,8 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                     add_peer(chunk, message['ip'], message['port'])
                     data = chunk.split(':')
                     add_file_chunk(data[1], int(data[3]))
-                print(files)
-                print(torrents)
+                # print(files)
+                # print(torrents)
                 self.request.sendall(generate_ack())
             elif message['type'] == 2:  # query for content
                 peers = make_peer_list(message['chunks'])
@@ -125,7 +133,7 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 
 if __name__ == "__main__":
-    HOST, PORT = '137.132.228.43', 9999
+    HOST, PORT = '172.25.107.133', 9995
 
     torrents = {}
     files = {}
