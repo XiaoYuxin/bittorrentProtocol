@@ -147,7 +147,7 @@ class Torrent:
         self.chunks_data = {key: None for key in range(0, self.data['info']['chunk number'])}
 
         # inform tracker about the interest
-        self.update_tracker()
+        update_tracker(self.filename, self.available_chunk_set, self.myip)
         # start the TCP server, listening to incoming request from other peers
         self.run_server()
         self.query_tracker_loop = Thread(target=self.query_tracker_for_status)
@@ -232,7 +232,7 @@ class Torrent:
                 self.chunks_data[rand_chunk['chunknum']] = response
                 self.available_chunk_set.add(rand_chunk['chunknum'])
                 # update tracker for the new chunk
-                self.update_tracker()
+                self.update_tracker(self.filename, self.available_chunk_set, self.myip)
 
     """contact tracker to exit"""
 
