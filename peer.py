@@ -11,6 +11,7 @@ import types
 from util import collapse, encode_request, decode_request
 from bencode import encode, decode
 import random
+import json
 
 CLIENT_NAME = "p2p_peer1"
 CLIENT_ID = "peer1"
@@ -22,8 +23,8 @@ SERVER_PORT = 50007
 def read_torrent_file(torrent_file):
     """ Given a .torrent file, returns its decoded contents. """
 
-    with open(torrent_file) as file:
-        return decode(file.read())
+    with open(torrent_file, 'rb') as file:
+        return json.loads((file.read().decode('utf-8')))
 
 
 def generate_peer_id():
@@ -58,10 +59,10 @@ def deformat_filename_chunk_num(formated_name):
     return result
 
 
-class Torrent():
+class Torrent:
     def __init__(self, torrent_file):
         self.data = read_torrent_file(torrent_file)
-        self.info_hash = sha1(encode(self.data["info"])).digest()
+        self.info_hash = self.data["info"]
         self.tracker_ip = self.data["tracker"][0]
         self.tracker_port = self.data["tracker"][1]
         self.filename = self.data['info']['name']
@@ -70,7 +71,7 @@ class Torrent():
                 [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
                  [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
         self.peer_id = generate_peer_id()
-        self.handshake = generate_handshake(self.info_hash, self.peer_id)
+        # self.handshake = generate_handshake(self.info_hash, self.peer_id)
         self.is_running = True
         # set of all remaining chunk numer
         self.remaining_chunk_set = {key for key in range(0, self.data['info']['chunk number'])}
@@ -190,3 +191,6 @@ class Torrent():
         encoded = encode_request({'type': 0, 'ip': self.myip, 'port': SERVER_PORT})
         s.send(encoded)
         s.close()
+
+
+t = Torrent('picture.jpg.torrent')
