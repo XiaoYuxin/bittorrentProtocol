@@ -101,7 +101,7 @@ class Torrent:
         info = dict()
         info["piece length"] = PIECE_LENGTH
         info["length"] = len(self.data)
-        info["chunk number"] = math.ceil(len(self.data) / PIECE_LENGTH * 1.0)
+        info["chunk number"] = int(math.ceil(len(self.data) / PIECE_LENGTH * 1.0))
         info["name"] = file
         # info["md5sum"] = md5(contents).hexdigest()
         # Generate the pieces
@@ -124,7 +124,7 @@ class Torrent:
         print('meta file name: ' + meta_file_name)
         with open(meta_file_name, "w") as torrent_file:
             torrent_file.write(json.dumps(torrent))
-        return torrent["info"]["chunk number"]
+        return int(torrent["info"]["chunk number"])
 
     def upload(self, file):
         chunk_num = self.make_torrent_file(file)
@@ -255,7 +255,9 @@ class Torrent:
         print(str(formated_filename))
         chunknum = deformat_filename_chunk_num(formated_filename.decode('utf-8'))[1]
         print('handling request for chunk: ' + str(chunknum))
-        conn.sendall(self.data[chunknum*PIECE_LENGTH:min(chunknum*PIECE_LENGTH+PIECE_LENGTH, len(self.data))])
+        data_to_send = self.data[chunknum*PIECE_LENGTH:min(chunknum*PIECE_LENGTH+PIECE_LENGTH, len(self.data))]
+        conn.sendall(('%16s' % (len(data_to_send))).encode('utf-8'))
+        conn.sendall(data_to_send)
         return
 
     def generate_rand_chunk_num(self):
@@ -296,9 +298,16 @@ class Torrent:
                 print('send request: ')
                 print(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
                 s.send(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
-                response = s.recv(1024)
-                print('chunk get is : ' + str(response))
-                self.chunks_data[rand_chunk['chunknum']] = response
+
+                length = int(s.recv(16).decode('utf-8'))
+                # print(length)
+                data = ""
+                while len(data) < length:
+                    newdata = s.recv(1024)
+                    data += newdata
+                # response = s.recv(1024)
+                print('chunk get is : ' + str(data))
+                self.chunks_data[rand_chunk['chunknum']] = data
                 self.available_chunk_set.add(rand_chunk['chunknum'])
                 # update tracker for the new chunk
                 self.update_tracker()
