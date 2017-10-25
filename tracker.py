@@ -125,7 +125,7 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 9999
+    HOST, PORT = '137.132.228.43', 9999
 
     torrents = {}
     files = {}
