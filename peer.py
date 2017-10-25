@@ -19,7 +19,7 @@ CLIENT_NAME = "p2p_peer1"
 CLIENT_ID = "peer1"
 CLIENT_VERSION = "0001"
 SLEEP_TIME = 5
-SERVER_PORT = 50006
+SERVER_PORT = 50004
 
 
 # CLIENT_NAME = "p2p_uploa#der"
@@ -176,7 +176,6 @@ class Torrent:
         # inform tracker about the interest
         update_tracker(self.filename, self.available_chunk_set, self.myip)
         # start the TCP server, listening to incoming request from other peers
-        self.run_server()
         query_tracker_loop = Thread(target=self.query_tracker_for_status)
         query_tracker_loop.start()
         # start send request to peers
