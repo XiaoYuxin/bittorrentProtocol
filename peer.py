@@ -144,7 +144,7 @@ class Torrent:
         self.query_peer_loop_3 = None
 
     def upload(self, file):
-        chunk_num = make_torrent_file(filename)
+        chunk_num = make_torrent_file(file)
         print('finish generating torrent file')
         self.filename = file
         self.available_chunk_set = []
@@ -172,7 +172,7 @@ class Torrent:
         self.chunks_data = {key: None for key in range(0, data['info']['chunk number'])}
 
         # inform tracker about the interest
-        update_tracker(filename, self.available_chunk_set, self.myip)
+        update_tracker(self.filename, self.available_chunk_set, self.myip)
         # start the TCP server, listening to incoming request from other peers
         self.run_server()
         query_tracker_loop = Thread(target=self.query_tracker_for_status)
@@ -273,7 +273,7 @@ class Torrent:
                 self.chunks_data[rand_chunk['chunknum']] = response
                 self.available_chunk_set.add(rand_chunk['chunknum'])
                 # update tracker for the new chunk
-                self.update_tracker(self.filename, self.available_chunk_set, self.myip)
+                self.update_tracker()
 
     """contact tracker to exit"""
 
