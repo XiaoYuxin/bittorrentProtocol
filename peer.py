@@ -220,8 +220,10 @@ class Torrent:
     """handle request from other peer"""
 
     def server_handle_request(self, conn):
+        print('handling request from another server')
         formated_filename = conn.recv(1024)
         chunknum = deformat_filename_chunk_num(formated_filename)['chunknum']
+        print('handling request for chunk: ' + chunknum)
         conn.sendall(self.chunks_data[chunknum])
         return
 
@@ -248,6 +250,7 @@ class Torrent:
         while len(self.remaining_chunk_set) > 0:
             rand_chunk = self.generate_rand_chunk_num()
             if rand_chunk:
+                print('requesting for chunk : '+ rand_chunk)
                 self.remaining_chunk_set.remove(rand_chunk['chunknum'])
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((rand_chunk['peer_ip'], rand_chunk['peer_port']))
