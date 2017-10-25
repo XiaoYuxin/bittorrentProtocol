@@ -19,7 +19,7 @@ CLIENT_NAME = "p2p_peer1"
 CLIENT_ID = "peer1"
 CLIENT_VERSION = "0001"
 SLEEP_TIME = 5
-SERVER_PORT = 50007
+SERVER_PORT = 50006
 
 
 # CLIENT_NAME = "p2p_uploa#der"
@@ -129,6 +129,7 @@ class Torrent:
             [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
                 [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
                  [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
+        self.run_server()
         self.info_hash = None
         self.tracker_ip = None
         self.tracker_port = None
