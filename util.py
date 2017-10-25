@@ -38,5 +38,6 @@ def decode_request(message):
 
 
 def encode_request(message):
+    """ Return the encoded request dict """
     data = json.dumps(message)
     return data.encode('utf8')
