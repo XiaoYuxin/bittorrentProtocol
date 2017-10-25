@@ -20,51 +20,14 @@ CLIENT_ID = "peer1"
 CLIENT_VERSION = "0001"
 SLEEP_TIME = 5
 SERVER_PORT = 49981
+PIECE_LENGTH = 4096
 
 
 # CLIENT_NAME = "p2p_uploa#der"
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
-TRACKER_IP = '172.25.107.133'
+TRACKER_IP = '172.25.107.64'
 TRACKER_PORT = 9995
-
-
-def make_info_dict(file):
-    """ Returns the info dictionary for a torrent file. """
-    print('before open the file')
-    with open(file, 'rb') as f:
-        contents = f.read()
-
-    piece_length = 4096  # TODO: This should change dependent on file size
-
-    info = dict()
-    info["piece length"] = piece_length
-    info["length"] = len(contents)
-    info["chunk number"] = math.ceil(len(contents) / piece_length * 1.0)
-    info["name"] = file
-    # info["md5sum"] = md5(contents).hexdigest()
-    # Generate the pieces
-    # pieces = slice_str(contents, piece_length)
-    # pieces = [ sha1(p).digest() for p in pieces ]
-    # info["pieces"] = collapse(pieces)
-    return info
-
-
-def make_torrent_file(file = None):
-    """ Returns the bencoded contents of a torrent file. """
-    if not file:
-        raise TypeError("make_torrent_file requires at least one file, non given.")
-
-    torrent = dict()
-    torrent["tracker"] = [TRACKER_IP, TRACKER_PORT]
-    torrent["creation date"] = int(time())
-    torrent["created by"] = CLIENT_NAME
-    torrent["info"] = make_info_dict(file)
-    meta_file_name = file + '.torrent'
-    print('meta file name: ' + meta_file_name)
-    with open(meta_file_name, "w") as torrent_file:
-        torrent_file.write(json.dumps(torrent))
-    return torrent["info"]["chunk number"]
 
 
 def read_torrent_file(torrent_file):
@@ -72,6 +35,7 @@ def read_torrent_file(torrent_file):
 
     with open(torrent_file, 'rb') as file:
         return json.loads((file.read().decode('utf-8')))
+
 
 def generate_peer_id():
     """ Returns a 20-byte peer id. """
@@ -123,12 +87,47 @@ class Torrent:
         self.available_chunk_set = None
         self.chunk_status_dict = dict()
         self.chunks_data = None
+        self.data = []
         self.query_peer_loop_1 = None
         self.query_peer_loop_2 = None
         self.query_peer_loop_3 = None
 
+    def make_info_dict(self, file):
+        """ Returns the info dictionary for a torrent file. """
+        print('before open the file')
+        with open(file, 'rb') as f:
+            self.data = f.read()
+
+        info = dict()
+        info["piece length"] = PIECE_LENGTH
+        info["length"] = len(self.data)
+        info["chunk number"] = math.ceil(len(self.data) / PIECE_LENGTH * 1.0)
+        info["name"] = file
+        # info["md5sum"] = md5(contents).hexdigest()
+        # Generate the pieces
+        # pieces = slice_str(contents, piece_length)
+        # pieces = [ sha1(p).digest() for p in pieces ]
+        # info["pieces"] = collapse(pieces)
+        return info
+
+    def make_torrent_file(self, file):
+        """ Returns the bencoded contents of a torrent file. """
+        if not file:
+            raise TypeError("make_torrent_file requires at least one file, non given.")
+
+        torrent = dict()
+        torrent["tracker"] = [TRACKER_IP, TRACKER_PORT]
+        torrent["creation date"] = int(time())
+        torrent["created by"] = CLIENT_NAME
+        torrent["info"] = self.make_info_dict(file)
+        meta_file_name = file + '.torrent'
+        print('meta file name: ' + meta_file_name)
+        with open(meta_file_name, "w") as torrent_file:
+            torrent_file.write(json.dumps(torrent))
+        return torrent["info"]["chunk number"]
+
     def upload(self, file):
-        chunk_num = make_torrent_file(file)
+        chunk_num = self.make_torrent_file(file)
         print('finish generating torrent file')
         self.filename = file
         self.available_chunk_set = []
@@ -188,7 +187,6 @@ class Torrent:
         for each_chunk in deformated_update_list.keys():
             #print(deformated_update_list[each_chunk])
             self.chunk_status_dict[each_chunk] = deformated_update_list[each_chunk]
-
 
     def query_tracker_for_status(self):
         # update the status for all the chunks that have not downloaded yet
@@ -254,9 +252,10 @@ class Torrent:
     def server_handle_request(self, conn):
         print('handling request from another server')
         formated_filename = conn.recv(1024)
-        chunknum = deformat_filename_chunk_num(formated_filename)[1]
-        print('handling request for chunk: ' + chunknum)
-        conn.sendall(self.chunks_data[chunknum])
+        print(str(formated_filename))
+        chunknum = deformat_filename_chunk_num(formated_filename.decode('utf-8'))[1]
+        print('handling request for chunk: ' + str(chunknum))
+        conn.sendall(self.data[chunknum*PIECE_LENGTH:min(chunknum*PIECE_LENGTH+PIECE_LENGTH, len(self.data))])
         return
 
     def generate_rand_chunk_num(self):
