@@ -84,14 +84,13 @@ class TCPHandler(SocketServer.BaseRequestHandler):
 
         # self.request is the TCP socket connected to the client
         length = int(self.request.recv(16).decode('utf-8'))
-        print(length)
+        print('Data length: s%', length)
 
         data = ""
         while len(data) < length:
             newdata = self.request.recv(1024)
             data += newdata
 
-        print(len(data))
         message = util.decode_request(data)
 
         if 'type' not in message:
@@ -99,22 +98,27 @@ class TCPHandler(SocketServer.BaseRequestHandler):
         else:
             if message['type'] == 0:  # exit the network
                 delete_peer(message['ip'], int(message['port']))
-                print(torrents)
+                print('Peer exits')
                 self.request.sendall(generate_ack())
                 print('Type 0')
             elif message['type'] == 1:  # inform and update
+                temp = 0
                 if 'chunk_num' in message.keys():
                     message['filename'] = message['chunk_num']
                 for chunk in message['chunks']:
+                    if temp == 0: print('Peer updating the chunk he/she has: ')
                     add_peer(chunk, message['ip'], message['port'])
                     data = chunk.split(':')
                     add_file_chunk(data[1], int(data[3]))
+                    print(int(data[3]))
+                    print(' ')
+                    temp++
                 # print(files)
                 # print(torrents)
                 self.request.sendall(generate_ack())
             elif message['type'] == 2:  # query for content
                 peers = make_peer_list(message['chunks'])
-                print(peers)
+                print('Peer requesting chunks...')
                 data = util.encode_request(peers)
                 self.request.sendall(('%16s' % (len(data))).encode('utf-8'))
                 self.request.sendall(data)
@@ -137,7 +141,7 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 
 if __name__ == "__main__":
-    HOST, PORT = '172.25.107.133', 9995
+    HOST, PORT = '172.25.101.124', 9995
 
     torrents = {}
     files = {}
