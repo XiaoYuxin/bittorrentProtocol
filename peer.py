@@ -5,7 +5,7 @@ from hashlib import md5, sha1
 from random import choice
 import socket
 from struct import pack, unpack
-from threading import Thread
+from threading import Thread, Lock
 from time import sleep, time
 import types
 from util import collapse, encode_request, decode_request
@@ -14,6 +14,7 @@ import random
 import json
 import sys
 import math
+
 
 CLIENT_NAME = "p2p_peer1"
 CLIENT_ID = "peer1"
@@ -91,10 +92,11 @@ class Torrent:
         self.query_peer_loop_1 = None
         self.query_peer_loop_2 = None
         self.query_peer_loop_3 = None
+        self.mutex = Lock()
 
     def make_info_dict(self, file):
         """ Returns the info dictionary for a torrent file. """
-        print('before open the file')
+        #print('before open the file')
         with open(file, 'rb') as f:
             self.data = f.read()
 
@@ -136,6 +138,7 @@ class Torrent:
         self.update_tracker()
 
     def download(self, torrent_file):
+        print('start downloading...')
         data = read_torrent_file(torrent_file)
         self.info_hash = data["info"]
         self.tracker_ip = data["tracker"][0]
@@ -157,6 +160,7 @@ class Torrent:
         self.chunks_data = {key: None for key in range(0, data['info']['chunk number'])}
 
         # inform tracker about the interest
+        print('indicate interest to tracker...')
         self.update_tracker()
         # start the TCP server, listening to incoming request from other peers
         query_tracker_loop = Thread(target=self.query_tracker_for_status)
@@ -167,6 +171,7 @@ class Torrent:
         #self.query_peer_loop_2 = Thread(target=self.client_send_request)
         #self.query_peer_loop_3 = Thread(target=self.client_send_request)
         self.query_peer_loop_1.start()
+        #self.query_peer_loop_2.start()
         #self.query_peer_loop_3.start()
         self.query_peer_loop_1.join()
         #self.query_peer_loop_2.join()
@@ -174,10 +179,9 @@ class Torrent:
         self.write_into_file()
 
     def write_into_file(self):
+        print('received all chunks, writing into files....')
         with open(self.filename, "wb") as data_file:
             for key, value in self.chunks_data.items():
-                print(key)
-                print(value)
                 data_file.write(value)
 
 
@@ -191,7 +195,6 @@ class Torrent:
 
     def query_tracker_for_status(self):
         # update the status for all the chunks that have not downloaded yet
-        print('before connecting to tracker')
         while self.is_running and len(self.remaining_chunk_set) > 0:
             chunks_to_query = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
                                self.remaining_chunk_set]
@@ -202,12 +205,11 @@ class Torrent:
             s.send(encoded)
 
             length = int(s.recv(16).decode('utf-8'))
-            print('receiving length from tracker: ' + str(length))
             data = b''
             while len(data) < length:
                 newdata = s.recv(1024)
                 data += newdata
-            print(len(data))
+            #print(len(data))
             b = b''
             b += data
 
@@ -216,7 +218,6 @@ class Torrent:
 
 
             #status_list_from_tracker = decode_request(response)
-            print('before update status list')
             self.update_status_list(status_list_from_tracker)
             s.close()
             # check the status for every 5 sec
@@ -280,24 +281,23 @@ class Torrent:
                     continue
                 result['peer_port'] = peer[1]
                 result['chunknum'] = chunk_num
+                self.remaining_chunk_set.remove(chunk_num)
                 return result
 
 
     """send request to other peer"""
 
     def client_send_request(self):
-        print('remaining chunk set')
         #print(self.remaining_chunk_set)
         while len(self.remaining_chunk_set) > 0:
             rand_chunk = self.generate_rand_chunk_num()
             #print('rand chunk')
             #print(rand_chunk)
             if rand_chunk:
-                self.remaining_chunk_set.remove(rand_chunk['chunknum'])
+                #self.remaining_chunk_set.remove(rand_chunk['chunknum'])
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((rand_chunk['peer_ip'], rand_chunk['peer_port']))
-                print('send request: ')
-                print(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
+                #print(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
                 s.send(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
 
                 length = int(s.recv(16).decode('utf-8'))
@@ -307,10 +307,12 @@ class Torrent:
                     newdata = s.recv(1024)
                     data += newdata
                 # response = s.recv(1024)
-                print('chunk get is : ' + str(data))
+                #print('chunk get is : ' + str(data))
                 self.chunks_data[rand_chunk['chunknum']] = data
                 self.available_chunk_set.add(rand_chunk['chunknum'])
                 # update tracker for the new chunk
+                print('received chunk: ' + str(rand_chunk['chunknum']))
+                print('updating tracker for the new chunk')
                 self.update_tracker()
 
     """contact tracker to exit"""
