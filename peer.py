@@ -87,7 +87,7 @@ class Torrent:
         self.remaining_chunk_set = None
         self.available_chunk_set = None
         self.chunk_status_dict = dict()
-        self.chunks_data = None
+        self.chunks_data = dict()
         self.data = []
         self.query_peer_loop_1 = None
         self.query_peer_loop_2 = None
