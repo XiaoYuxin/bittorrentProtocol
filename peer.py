@@ -229,7 +229,7 @@ class Torrent:
         # 1) innitially indicate interest to tracker
         # 2) every time after it finish download a chunk, update the status
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((TRACKER_IP, TRACKER_PORT))
+        s.connect((self.tracker_ip, self.tracker_port))
         formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
                                     self.available_chunk_set]
         encoded = encode_request({'type': 1, 'chunks': formated_available_chunk, 'ip': self.myip, 'port': SERVER_PORT})
