@@ -84,7 +84,7 @@ class TCPHandler(SocketServer.BaseRequestHandler):
 
         # self.request is the TCP socket connected to the client
         length = int(self.request.recv(16).decode('utf-8'))
-        print('Data length: s%', length)
+        print("Data length: " +  str(length))
 
         data = ""
         while len(data) < length:
@@ -103,16 +103,17 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 print('Type 0')
             elif message['type'] == 1:  # inform and update
                 temp = 0
+                print_chunks_list = []
                 if 'chunk_num' in message.keys():
                     message['filename'] = message['chunk_num']
                 for chunk in message['chunks']:
                     if temp == 0: print('Peer updating the chunk he/she has: ')
                     add_peer(chunk, message['ip'], message['port'])
                     data = chunk.split(':')
+                    print_chunks_list.append(int(data[3]))
                     add_file_chunk(data[1], int(data[3]))
-                    print(int(data[3]))
-                    print(' ')
-                    temp++
+                    temp = temp + 1
+                print(print_chunks_list)
                 # print(files)
                 # print(torrents)
                 self.request.sendall(generate_ack())
@@ -141,11 +142,13 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 
 if __name__ == "__main__":
-    HOST, PORT = '172.25.101.124', 9995
+    HOST, PORT = '172.25.105.143', 9995
 
     torrents = {}
     files = {}
 
     # Create the server, binding to localhost on port 9999
+    print('Running tracker...')
+    print('Waiting for peers to connect...')
     server = ThreadedTCPServer((HOST, PORT), TCPHandler)
     server.serve_forever()
