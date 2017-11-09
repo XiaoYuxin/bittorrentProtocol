@@ -124,7 +124,7 @@ class Torrent:
         self.info_hash = data["info"]
         self.tracker_ip = data["tracker"][0]
         self.tracker_port = data["tracker"][1]
-        self.filename = data['info']['name'] + "(2)"
+        self.filename = data['info']['name']
 
         # set of all remaining chunk numer
         self.remaining_chunk_set = {key for key in range(0, data['info']['chunk number'])}
