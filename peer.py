@@ -105,6 +105,8 @@ class Torrent:
         info["length"] = len(self.data)
         info["chunk number"] = int(math.ceil(len(self.data) / PIECE_LENGTH * 1.0))
         info["name"] = file
+        for chunknum in range(0, info["chunk number"]):
+            self.chunks_data[chunknum] = self.data[chunknum*PIECE_LENGTH:min(chunknum*PIECE_LENGTH+PIECE_LENGTH, len(self.data))]
         # info["md5sum"] = md5(contents).hexdigest()
         # Generate the pieces
         # pieces = slice_str(contents, piece_length)
@@ -229,7 +231,7 @@ class Torrent:
         # 1) innitially indicate interest to tracker
         # 2) every time after it finish download a chunk, update the status
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((TRACKER_IP, TRACKER_PORT))
+        s.connect((self.tracker_ip, self.tracker_port))
         formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
                                     self.available_chunk_set]
         encoded = encode_request({'type': 1, 'chunks': formated_available_chunk, 'ip': self.myip, 'port': SERVER_PORT})
@@ -257,7 +259,7 @@ class Torrent:
         print(str(formated_filename))
         chunknum = deformat_filename_chunk_num(formated_filename.decode('utf-8'))[1]
         print('handling request for chunk: ' + str(chunknum))
-        data_to_send = self.data[chunknum*PIECE_LENGTH:min(chunknum*PIECE_LENGTH+PIECE_LENGTH, len(self.data))]
+        data_to_send = self.chunks_data[chunknum]
         conn.sendall(('%16s' % (len(data_to_send))).encode('utf-8'))
         conn.sendall(data_to_send)
         return
