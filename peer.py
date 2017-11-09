@@ -220,7 +220,7 @@ class Torrent:
     def run_server(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(('', SERVER_PORT))
-        s.listen(1)
+        s.listen(5)
         while True:
             conn, addr = s.accept()
             print('Connected by', addr)
