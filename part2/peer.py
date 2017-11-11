@@ -28,7 +28,7 @@ PIECE_LENGTH = 4096
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 9995
+TRACKER_PORT = 9994
 
 # for testing
 UDP_TIME = 1
@@ -91,6 +91,7 @@ class Torrent:
         b = b''
         b += data
         self.pid = json.loads(b)['pid']
+        print ("my peer id %s", self.pid)
         while True:
             length = int(s.recv(16).decode('utf-8'))
             data = b''
@@ -106,6 +107,7 @@ class Torrent:
             filename = request['filename']
             chunk = request['chunk_num']
             request_loop = Thread(target=self.send_chunk, args=(peer_ip, peer_port, filename, chunk))
+            request_loop.start()
 
 
     def make_info_dict(self, file):
