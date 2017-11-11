@@ -7,8 +7,7 @@ import socket
 import SocketServer
 import json
 import util
-import Queue
-
+from Queue import Queue
 
 def add_file_chunk(filename, chunk_num):
     if filename in files:
@@ -143,7 +142,9 @@ class TCPHandler(SocketServer.BaseRequestHandler):
             elif message['type'] == 5:  # register
                 pid = len(queues)
                 queues.append(Queue())
-                self.request.sendall(util.encode_request({"pid": pid}))
+                reply = {"pid": pid}
+                self.request.send(('%16s' % (len(reply))).encode('utf-8'))
+                self.request.sendall(util.encode_request(reply))
                 indicate_interest_loop(pid, self.request)
             else:
                 self.request.sendall(generate_error())
