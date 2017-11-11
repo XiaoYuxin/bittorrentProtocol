@@ -83,8 +83,8 @@ def get_data_loop(pid, sock):
     while True:
         message = request_queues[pid].get(True)
         encoded = util.encode_request(message)
-        print("get request from queue: ")
-        print(message)
+        # print("get request from queue: ")
+        # print(message)
         sock.sendall(('%16s' % len(encoded)).encode('utf-8'))
         sock.sendall(encoded)
 
@@ -95,7 +95,7 @@ def get_data_loop(pid, sock):
             data += newdata
 
         data_queues[message['req_pid']].put(data, True)
-        print("get data of chunk " + str(message["chunk_num"]) + " and put in data queue " + str(message['req_pid']))
+        # print("get data of chunk " + str(message["chunk_num"]) + " and put in data queue " + str(message['req_pid']))
 
 
 # def process_interest_loop(pid, sock):
@@ -180,14 +180,15 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 get_data_loop(pid, self.request)
             elif message['type'] == 6:  # ask for data
                 request_queues[message["res_pid"]].put(message, True)
-                print("received request and put in queue: ")
-                print(message)
+                # print("received request and put in queue: ")
+                # print(message)
 
                 chunk_data = data_queues[message['req_pid']].get(True)
                 print("!!!!!!!!")
                 self.request.sendall(('%16s' % len(chunk_data)).encode('utf-8'))
                 self.request.sendall(chunk_data)
-                print("finished request for " + str(message["req_pid"]) + " of chunk " + str(message["chunk_num"]))
+                print("finished request req id " + str(message["req_pid"]) + " res id " + str(message["res_pid"]) +
+                      " of chunk " + str(message["chunk_num"]))
                 # process_interest_loop(message['pid'], self.request)
             else:
                 self.request.sendall(generate_error())
@@ -203,7 +204,7 @@ if __name__ == "__main__":
             [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
                 [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
                  [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
-    HOST, TCP_PORT = my_ip, 10014
+    HOST, TCP_PORT = my_ip, 10016
 
     torrents = {}
     files = {}

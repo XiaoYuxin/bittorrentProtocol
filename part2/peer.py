@@ -101,7 +101,6 @@ class Torrent:
         # data_queue_loop.start()
         while True:
             try:
-                print('handle request for a chunk using TCP')
                 length = int(s.recv(16).decode('utf-8'))
                 data = b''
                 while len(data) < length:
@@ -111,6 +110,8 @@ class Torrent:
                 b = b''
                 b += data
                 request = json.loads(b)
+                print('handle request ' + str(request['req_id']) + ' for chunk ' + str(request['chunk_num'])
+                      + ' using TCP')
                 filename = request['filename']
                 chunk = request['chunk_num']
                 data_to_send = self.chunks_data[chunk]
