@@ -82,7 +82,11 @@ def generate_error():
 def indicate_interest_loop(pid, skt):
     while True:
         interest = queues[pid].get(True)
-        skt.sendall(util.encode_request(interest))
+        encoded = util.encode_request(interest)
+        length = len(encoded)
+        # print(encoded + " length " + ('%16s' % length))
+        skt.sendall(('%16s' % length).encode('utf-8'))
+        skt.sendall(encoded)
 
 
 class TCPHandler(SocketServer.BaseRequestHandler):
@@ -114,7 +118,7 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                     message['filename'] = message['chunk_num']
                 for chunk in message['chunks']:
                     if temp == 0:
-                        print('Peer updating the chunk he/she has: ')
+                        print('Peer ' + str(message["pid"]) + ' updating the chunk he/she has: ')
                     add_peer(chunk, message["pid"])
                     data = chunk.split(':')
                     print_chunks_list.append(int(data[3]))
@@ -151,30 +155,10 @@ class TCPHandler(SocketServer.BaseRequestHandler):
         self.request.close()
 
 
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    pass
-
-
-if __name__ == "__main__":
-    my_ip = ([l for l in (
-            [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
-                [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
-                 [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
-    HOST, TCP_PORT = my_ip, 9995
-
-    torrents = {}
-    files = {}
-    queues = []
-
-    # Create the server, binding to localhost on port 9999
-    print('Running tracker...')
-    print('Waiting for peers to connect...')
-    server = ThreadedTCPServer((HOST, TCP_PORT), TCPHandler)
-    server.serve_forever()
-
-    UDP_PORT = 66666
+def udp_thread():
+    udp_port = 12345
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((my_ip, UDP_PORT))
+    sock.bind((my_ip, udp_port))
     while True:
         data, address = sock.recvfrom(1024)
         request = util.decode_request(data)
@@ -184,3 +168,33 @@ if __name__ == "__main__":
         message["chunk_num"] = request["chunk_num"]
         message["filename"] = request["filename"]
         queues[request["pid"]].put(message, True)
+
+
+class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
+
+
+if __name__ == "__main__":
+    my_ip = ([l for l in (
+            [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
+                [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
+                 [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
+    HOST, TCP_PORT = my_ip, 9991
+
+    torrents = {}
+    files = {}
+    queues = []
+
+    udp = Thread(target=udp_thread)
+    udp.start()
+
+    # Create the server, binding to localhost on port 9999
+    print('Running tracker...')
+    print('Waiting for peers to connect...')
+    server = ThreadedTCPServer((HOST, TCP_PORT), TCPHandler)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.server_close()
+
+    udp.join()
