@@ -7,6 +7,7 @@ import socket
 import SocketServer
 import json
 import util
+import Queue
 
 
 def add_file_chunk(filename, chunk_num):
@@ -25,23 +26,23 @@ def delete_file_chunk(filename, chunk_num):
             files.pop(filename, None)
 
 
-def add_peer(info_hash, ip, port):
+def add_peer(info_hash, pid):
     """ Add the peer to the peer list. """
 
     # If the file exists in the file list, just add the peer
     if info_hash in torrents:
         # Only add the peer if they're not already in the database
-        if (ip, port) not in torrents[info_hash]:
-            torrents[info_hash].append((ip, port))
+        if pid not in torrents[info_hash]:
+            torrents[info_hash].append(pid)
     # Otherwise, add the info_hash and the peer
     else:
-        torrents[info_hash] = [(ip, port)]
+        torrents[info_hash] = [pid]
 
 
-def delete_peer(ip, port):
+def delete_peer(pid):
     for info_hash, value in torrents.items():
-        if (ip, port) in value:
-            value.remove((ip, port))
+        if pid in value:
+            value.remove(pid)
         if value is []:
             torrents.pop(info_hash, None)
             data = info_hash.split(':')
@@ -80,6 +81,12 @@ def generate_error():
     return error.encode('utf8')
 
 
+def indicate_interest_loop(pid, skt):
+    while True:
+        interest = queues[pid].get(True)
+        skt.sendall(util.encode_request(interest))
+
+
 class TCPHandler(SocketServer.BaseRequestHandler):
     def handle(self):
 
@@ -98,7 +105,7 @@ class TCPHandler(SocketServer.BaseRequestHandler):
             self.request.sendall(generate_error())
         else:
             if message['type'] == 0:  # exit the network
-                delete_peer(message['ip'], int(message['port']))
+                delete_peer(message['pid'])
                 print('Peer exits')
                 self.request.sendall(generate_ack())
                 print('Type 0')
@@ -108,8 +115,9 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 if 'chunk_num' in message.keys():
                     message['filename'] = message['chunk_num']
                 for chunk in message['chunks']:
-                    if temp == 0: print('Peer updating the chunk he/she has: ')
-                    add_peer(chunk, message['ip'], message['port'])
+                    if temp == 0:
+                        print('Peer updating the chunk he/she has: ')
+                    add_peer(chunk, message["pid"])
                     data = chunk.split(':')
                     print_chunks_list.append(int(data[3]))
                     add_file_chunk(data[1], int(data[3]))
@@ -133,6 +141,11 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 else:
                     chunk_list = []
                 self.request.sendall(util.encode_request(chunk_list))
+            elif message['type'] == 5:  # register
+                pid = len(queues)
+                queues.append(Queue())
+                self.request.sendall(util.encode_request({"pid": pid}))
+                indicate_interest_loop(pid, self.request)
             else:
                 self.request.sendall(generate_error())
         self.request.close()
@@ -147,13 +160,27 @@ if __name__ == "__main__":
             [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
                 [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
                  [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
-    HOST, PORT = my_ip, 9995
+    HOST, TCP_PORT = my_ip, 9995
 
     torrents = {}
     files = {}
+    queues = []
 
     # Create the server, binding to localhost on port 9999
     print('Running tracker...')
     print('Waiting for peers to connect...')
-    server = ThreadedTCPServer((HOST, PORT), TCPHandler)
+    server = ThreadedTCPServer((HOST, TCP_PORT), TCPHandler)
     server.serve_forever()
+
+    UDP_PORT = 66666
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((my_ip, UDP_PORT))
+    while True:
+        data, address = sock.recvfrom(1024)
+        request = util.decode_request(data)
+        message = dict()
+        message["ip"] = address[0]
+        message["port"] = address[1]
+        message["chunk_num"] = request["chunk_num"]
+        message["filename"] = request["filename"]
+        queues[request["pid"]].put(True, message)
