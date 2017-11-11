@@ -28,8 +28,8 @@ PIECE_LENGTH = 4096
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 9991
-TRACKER_UDP_ORT = 12345
+TRACKER_PORT = 10007
+TRACKER_UDP_PORT = 12355
 
 
 # for testing
@@ -259,13 +259,13 @@ class Torrent:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         data_to_send = {'pid':  peer_id, 'filename': filename, 'chunk_num': chunk_num}
         # TODO: check UDP packet size
-        s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_ORT))
+        s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_PORT))
+        s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_PORT))
         if UDP_TIME == 2: 
-            s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_ORT))
+            s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_PORT))
         data = s.recv(8000)
         self.chunks_data[chunk_num] = data
-        print('getting the requested chunk....')
-        print(data)
+        print('getting the requested chunk....' + str(chunk_num))
         s.close()
         return
 
@@ -305,7 +305,27 @@ class Torrent:
         print peer_ip
         print peer_port
         print chunk
+        print len(data_to_send)
         s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending first time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending second time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending third time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 4th time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 5th time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 6th time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 7th time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 8th time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 9th time...")
+        s.sendto(data_to_send, (peer_ip, peer_port))
+        print ("Finish sending 10th time...")
         if UDP_TIME == 2:
             s.sendto(data_to_send, (peer_ip, peer_port))
         s.close()
