@@ -28,7 +28,7 @@ PIECE_LENGTH = 4096
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 10007
+TRACKER_PORT = 10017
 TRACKER_UDP_PORT = 12355
 
 
@@ -259,7 +259,7 @@ class Torrent:
             sleep(SLEEP_TIME)
 
     def get_chunk(self, peer_id, filename, chunk_num):
-        print('request for a chunk using TCP')
+        print('request peer %d for a chunk %d using TCP', peer_id, chunk_num)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((TRACKER_IP, TRACKER_PORT))
         data_to_send = {'type': 6, 'req_pid': self.pid, 'res_pid': peer_id, 'filename': filename, 'chunk_num': chunk_num}
@@ -274,6 +274,7 @@ class Torrent:
         #print(len(data))
         self.chunks_data[chunk_num] = data
         print('getting the requested chunk....' + str(chunk_num))
+        print('Remaining chunk set length...' + str(len(remaining_chunk_set)))
         s.close()
         return
 
