@@ -28,7 +28,7 @@ PIECE_LENGTH = 4096
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 9995
+TRACKER_PORT = 9991
 TRACKER_UDP_ORT = 12345
 
 
@@ -112,6 +112,8 @@ class Torrent:
                 peer_port = request['port']
                 filename = request['filename']
                 chunk = request['chunk_num']
+                print("Peer IP: " + peer_ip)
+                print("Peer Port: " + str(peer_port))
                 request_loop = Thread(target=self.send_chunk, args=(peer_ip, peer_port, filename, chunk))
                 request_loop.start()
             except TypeError:
@@ -296,10 +298,13 @@ class Torrent:
     """handle request from other peer"""
 
     def send_chunk(self, peer_ip, peer_port, filename, chunk):
-        print('handling request and send trunk to another peer')
+        print('handling request and send chunk to another peer')
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         data_to_send = self.chunks_data[chunk]
         # TODO: check UDP packet size
+        print peer_ip
+        print peer_port
+        print chunk
         s.sendto(data_to_send, (peer_ip, peer_port))
         if UDP_TIME == 2:
             s.sendto(data_to_send, (peer_ip, peer_port))
