@@ -29,6 +29,8 @@ PIECE_LENGTH = 4096
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
 TRACKER_PORT = 9995
+TRACKER_UDP_ORT = 12345
+
 
 # for testing
 UDP_TIME = 1
@@ -77,13 +79,16 @@ class Torrent:
         self.pid = None
 
     def register(self):
+        print('start registering.....')
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((TRACKER_IP, TRACKER_PORT))
+        print('finish connecting....')
         encoded = encode_request({'type': 5})
         s.send(('%16s' % (len(encoded))).encode('utf-8'))
         s.send(encoded)
         length = int(s.recv(16).decode('utf-8'))
         data = b''
+        print('finishing sending...')
         while len(data) < length:
             newdata = s.recv(1024)
             data += newdata
@@ -217,6 +222,7 @@ class Torrent:
     def query_tracker_for_status(self):
         # update the status for all the chunks that have not downloaded yet
         while len(self.remaining_chunk_set) > 0:
+            print('query tracker for status.....')
             chunks_to_query = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
                                self.remaining_chunk_set]
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -251,11 +257,13 @@ class Torrent:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         data_to_send = {'pid':  peer_id, 'filename': filename, 'chunk_num': chunk_num}
         # TODO: check UDP packet size
-        s.sendto(data_to_send, (TRACKER_IP, TRACKER_PORT))
+        s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_ORT))
         if UDP_TIME == 2: 
-            s.sendto(data_to_send, (TRACKER_IP, TRACKER_PORT))
+            s.sendto(encode_request(data_to_send), (TRACKER_IP, TRACKER_UDP_ORT))
         data = s.recv(8000)
         self.chunks_data[chunk_num] = data
+        print('getting the requested chunk....')
+        print(data)
         s.close()
         return
 
@@ -268,6 +276,7 @@ class Torrent:
         formated_available_chunk = [format_filename_chunk_num(self.filename, chunk_num) for chunk_num in
                                     self.available_chunk_set]
         encoded = encode_request({'type': 1, 'chunks': formated_available_chunk, 'pid': self.pid})
+        print('update available chunks...')
         s.send(('%16s' % (len(encoded))).encode('utf-8'))
         s.send(encoded)
         response = s.recv(1024)
@@ -309,9 +318,11 @@ class Torrent:
                 if len(self.remaining_chunk_set.difference(exclude_set)) == 0:
                     return result
             else:
-                peer = random.choice(self.chunk_status_dict[chunk_num])
-                result['pid'] = peer[0]
-                if peer[0] == self.pid:
+                peer_id = random.choice(self.chunk_status_dict[chunk_num])
+                print('peer list...')
+                print(peer_id)
+                result['pid'] = peer_id
+                if peer_id == self.pid:
                     result = {}
                     continue
                 result['chunknum'] = chunk_num
@@ -323,6 +334,7 @@ class Torrent:
     def client_send_request(self):
         #print(self.remaining_chunk_set)
         while len(self.remaining_chunk_set) > 0:
+            print('sending request....')
             rand_chunk = self.generate_rand_chunk_num()
             #print('rand chunk')
             #print(rand_chunk)
@@ -342,6 +354,7 @@ class Torrent:
                 # # response = s.recv(1024)
                 # #print('chunk get is : ' + str(data))
                 # self.chunks_data[rand_chunk['chunknum']] = data
+                print('before sending request.....')
                 self.get_chunk(rand_chunk['pid'], self.filename, rand_chunk['chunknum'])
                 self.available_chunk_set.add(rand_chunk['chunknum'])
                 self.remaining_chunk_set.remove(rand_chunk['chunknum'])
