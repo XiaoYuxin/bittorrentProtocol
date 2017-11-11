@@ -27,7 +27,7 @@ PIECE_LENGTH = 4096
 # CLIENT_NAME = "p2p_uploa#der"
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
-TRACKER_IP = '172.25.100.194'
+TRACKER_IP = '172.17.6.152'
 TRACKER_PORT = 9995
 
 # for testing
@@ -54,12 +54,12 @@ def deformat_filename_chunk_num(formated_name):
 
 class Torrent:
     def __init__(self):
-        self.myip = ([l for l in (
-            [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
-                [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
-                 [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
+        # self.myip = ([l for l in (
+        #     [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
+        #         [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
+        #          [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
         # run_server_loop = Thread(target=self.run_server)
-        run_server_loop.start()
+        #run_server_loop.start()
         self.info_hash = None
         self.tracker_ip = None
         self.tracker_port = None
@@ -68,10 +68,12 @@ class Torrent:
         self.available_chunk_set = None
         self.chunk_status_dict = dict()
         self.chunks_data = dict()
+        register_loop = Thread(target=self.register)
+        register_loop.start()
         self.query_peer_loop_1 = None
         self.query_peer_loop_2 = None
         self.query_peer_loop_3 = None
-        self.mutex = Lock()
+        #self.mutex = Lock()
         self.pid = None
 
     def register(self):
@@ -244,7 +246,8 @@ class Torrent:
         data_to_send = {'pid':  peer_id, 'filename': filename, 'chunk_num': chunk_num}
         # TODO: check UDP packet size
         s.sendto(data_to_send, (TRACKER_IP, TRACKER_PORT))
-        if (UDP_TIME == 2) s.sendto(data_to_send, (TRACKER_IP, TRACKER_PORT))
+        if UDP_TIME == 2: 
+            s.sendto(data_to_send, (TRACKER_IP, TRACKER_PORT))
         data = s.recv(8000)
         self.chunks_data[chunk_num] = data
         s.close()
@@ -283,7 +286,8 @@ class Torrent:
         data_to_send = self.chunks_data[chunk]
         # TODO: check UDP packet size
         s.sendto(data_to_send, (peer_ip, peer_port))
-        if (UDP_TIME == 2) s.sendto(data_to_send, (peer_ip, peer_port))
+        if UDP_TIME == 2:
+            s.sendto(data_to_send, (peer_ip, peer_port))
         s.close()
         return
 
