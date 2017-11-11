@@ -49,16 +49,15 @@ def delete_peer(pid):
             delete_file_chunk(data[1], int(data[3]))
 
 
-def expand_peer_list(peer_list):
-    """ Return an expanded peer list suitable for the client, given the peer list. """
-
-    peers = []
-    for peer in peer_list:
-        p = dict()
-        p["ip"] = peer[0]
-        p["port"] = int(peer[1])
-        peers.append(p)
-    return peers
+# def expand_peer_list(peer_list):
+#     """ Return an expanded peer list suitable for the client, given the peer list. """
+#
+#     peers = []
+#     for peer in peer_list:
+#         p = dict()
+#         p["pid"] = int()
+#         peers.append(p)
+#     return peers
 
 
 def make_peer_list(file_chunks):
@@ -183,4 +182,4 @@ if __name__ == "__main__":
         message["port"] = address[1]
         message["chunk_num"] = request["chunk_num"]
         message["filename"] = request["filename"]
-        queues[request["pid"]].put(True, message)
+        queues[request["pid"]].put(message, True)
