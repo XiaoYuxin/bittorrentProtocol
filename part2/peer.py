@@ -28,7 +28,7 @@ PIECE_LENGTH = 4096
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 10007
+TRACKER_PORT = 10015
 TRACKER_UDP_PORT = 12355
 
 
@@ -101,7 +101,6 @@ class Torrent:
         # data_queue_loop.start()
         while True:
             try:
-                print('handle request for a chunk using TCP')
                 length = int(s.recv(16).decode('utf-8'))
                 data = b''
                 while len(data) < length:
@@ -111,6 +110,8 @@ class Torrent:
                 b = b''
                 b += data
                 request = json.loads(b)
+                print('handle request ' + str(request['req_id']) + ' for chunk ' + str(request['chunk_num'])
+                      + ' using TCP')
                 filename = request['filename']
                 chunk = request['chunk_num']
                 data_to_send = self.chunks_data[chunk]
