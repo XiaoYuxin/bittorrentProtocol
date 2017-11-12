@@ -110,7 +110,7 @@ class Torrent:
                 b = b''
                 b += data
                 request = json.loads(b)
-                print('handle request ' + str(request['req_pid']) + ' for chunk ' + str(request['chunk_num'])
+                print('handle request from' + str(request['req_pid']) + ' for chunk ' + str(request['chunk_num'])
                       + ' using TCP')
                 filename = request['filename']
                 chunk = request['chunk_num']
