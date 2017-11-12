@@ -23,13 +23,8 @@ SLEEP_TIME = 5
 SERVER_PORT = 49985
 PIECE_LENGTH = 4096
 
-
-# CLIENT_NAME = "p2p_uploa#der"
-# CLIENT_ID = "uploader"
-# CLIENT_VERSION = "0001"
-TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 10020
-TRACKER_UDP_PORT = 12355
+TRACKER_IP = '128.199.108.79'
+TRACKER_PORT = 10017
 
 
 # for testing
@@ -56,12 +51,6 @@ def deformat_filename_chunk_num(formated_name):
 
 class Torrent:
     def __init__(self):
-        # self.myip = ([l for l in (
-        #     [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [
-        #         [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in
-        #          [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])
-        # run_server_loop = Thread(target=self.run_server)
-        #run_server_loop.start()
         self.info_hash = None
         self.tracker_ip = None
         self.tracker_port = None
@@ -96,9 +85,7 @@ class Torrent:
         b = b''
         b += data
         self.pid = json.loads(b)['pid']
-        print ("my peer id %s", self.pid)
-        # data_queue_loop = Thread(target=self.register_data_queue, args=(self.pid))
-        # data_queue_loop.start()
+        print ("my peer id %s" % self.pid)
         while True:
             try:
                 length = int(s.recv(16).decode('utf-8'))
@@ -121,18 +108,6 @@ class Torrent:
                 print(TypeError)
                 continue
 
-    # def register_data_queue(self):
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     s.connect((TRACKER_IP, TRACKER_PORT))
-    #     print('start registering data queue....')
-    #     encoded = encode_request({'type': 6, 'pid': self.pid})
-    #     s.send(('%16s' % (len(encoded))).encode('utf-8'))
-    #     s.send(encoded)
-    #     #length = int(s.recv(16).decode('utf-8'))
-    #     #data = b''
-    #     print('finishing regitering data queue...')
-    #
-
 
     def make_info_dict(self, file):
         """ Returns the info dictionary for a torrent file. """
@@ -147,11 +122,6 @@ class Torrent:
         info["name"] = file
         for chunk_num in range(0, info["chunk number"]):
             self.chunks_data[chunk_num] = data[chunk_num*PIECE_LENGTH:min(chunk_num*PIECE_LENGTH+PIECE_LENGTH, len(data))]
-        # info["md5sum"] = md5(contents).hexdigest()
-        # Generate the pieces
-        # pieces = slice_str(contents, piece_length)
-        # pieces = [ sha1(p).digest() for p in pieces ]
-        # info["pieces"] = collapse(pieces)
         return info
 
     def make_torrent_file(self, file):
@@ -244,7 +214,6 @@ class Torrent:
             while len(data) < length:
                 newdata = s.recv(1024)
                 data += newdata
-            #print(len(data))
             b = b''
             b += data
 
@@ -255,11 +224,10 @@ class Torrent:
             self.update_status_list(status_list_from_tracker)
             s.close()
             # check the status for every 5 sec
-            #print(self.chunk_status_dict)
             sleep(SLEEP_TIME)
 
     def get_chunk(self, peer_id, filename, chunk_num):
-        print('request peer %d for a chunk %d using TCP', peer_id, chunk_num)
+        print('request peer %d for a chunk %d using TCP' % (peer_id, chunk_num))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((TRACKER_IP, TRACKER_PORT))
         data_to_send = {'type': 6, 'req_pid': self.pid, 'res_pid': peer_id, 'filename': filename, 'chunk_num': chunk_num}
@@ -273,7 +241,6 @@ class Torrent:
             data += newdata
         #print(len(data))
         self.chunks_data[chunk_num] = data
-        print('getting the requested chunk....' + str(chunk_num))
         print('Remaining chunk set length...' + str(len(self.remaining_chunk_set)))
         s.close()
         return
@@ -294,73 +261,6 @@ class Torrent:
         s.close()
         return
 
-    # def run_server(self):
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     s.bind(('', SERVER_PORT))
-    #     s.listen(5)
-    #     while True:
-    #         conn, addr = s.accept()
-    #         print('Connected by', addr)
-    #         server_loop = Thread(target=self.server_handle_request, args=(conn,))
-    #         server_loop.start()
-
-    """handle request from other peer"""
-
-    # def send_chunk(self, filename, chunk):
-    #     print('handle request for a chunk using TCP')
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     s.connect((TRACKER_IP, TRACKER_PORT))
-    #     data_to_send = self.chunks_data[chunk]
-    #     s.send(('%16s' % (len(data_to_send))).encode('utf-8'))
-    #     s.send(data_to_send)
-    #     length = int(s.recv(16).decode('utf-8'))
-    #     data = b''
-    #     while len(data) < length:
-    #         newdata = s.recv(1024)
-    #         data += newdata
-    #     #print(len(data))
-    #     self.chunks_data[chunk_num] = data
-    #     print('getting the requested chunk....' + str(chunk_num))
-    #     s.close()
-    #     return
-    #
-    #
-    #
-    #
-    #
-    #     print('handling request and send chunk to another peer')
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #     data_to_send = self.chunks_data[chunk]
-    #     # TODO: check UDP packet size
-    #     print (peer_ip)
-    #     print (peer_port)
-    #     print (chunk)
-    #     print (len(data_to_send))
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending first time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending second time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending third time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 4th time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 5th time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 6th time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 7th time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 8th time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 9th time...")
-    #     s.sendto(data_to_send, (peer_ip, peer_port))
-    #     print ("Finish sending 10th time...")
-    #     if UDP_TIME == 2:
-    #         s.sendto(data_to_send, (peer_ip, peer_port))
-    #     s.close()
-    #     return
-
     def generate_rand_chunk_num(self):
         result = {}
         exclude_set = set()
@@ -374,8 +274,6 @@ class Torrent:
                     return result
             else:
                 peer_id = random.choice(self.chunk_status_dict[chunk_num])
-                print('peer list...')
-                print(peer_id)
                 result['pid'] = peer_id
                 if peer_id == self.pid:
                     result = {}
@@ -389,26 +287,8 @@ class Torrent:
     def client_send_request(self):
         #print(self.remaining_chunk_set)
         while len(self.remaining_chunk_set) > 0:
-            print('sending request....')
             rand_chunk = self.generate_rand_chunk_num()
-            #print('rand chunk')
-            #print(rand_chunk)
             if rand_chunk:
-                #self.remaining_chunk_set.remove(rand_chunk['chunknum'])
-                # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                # s.connect((rand_chunk['peer_ip'], rand_chunk['peer_port']))
-                #print(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
-                # s.send(format_filename_chunk_num(self.filename, rand_chunk['chunknum']).encode('utf-8'))
-
-                # length = int(s.recv(16).decode('utf-8'))
-                # # print(length)
-                # data = b''
-                # while len(data) < length:
-                #     newdata = s.recv(1024)
-                #     data += newdata
-                # # response = s.recv(1024)
-                # #print('chunk get is : ' + str(data))
-                # self.chunks_data[rand_chunk['chunknum']] = data
                 print('before sending request.....')
                 self.get_chunk(rand_chunk['pid'], self.filename, rand_chunk['chunknum'])
                 self.available_chunk_set.add(rand_chunk['chunknum'])
