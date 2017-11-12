@@ -110,7 +110,7 @@ class Torrent:
                 b = b''
                 b += data
                 request = json.loads(b)
-                print('handle request ' + str(request['req_id']) + ' for chunk ' + str(request['chunk_num'])
+                print('handle request ' + str(request['req_pid']) + ' for chunk ' + str(request['chunk_num'])
                       + ' using TCP')
                 filename = request['filename']
                 chunk = request['chunk_num']
@@ -249,7 +249,7 @@ class Torrent:
             b += data
 
             #status_list_from_tracker = decode_request(data)
-            status_list_from_tracker= json.loads(b)
+            status_list_from_tracker = json.loads(b)
 
             #status_list_from_tracker = decode_request(response)
             self.update_status_list(status_list_from_tracker)
