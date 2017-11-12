@@ -28,7 +28,7 @@ PIECE_LENGTH = 4096
 # CLIENT_ID = "uploader"
 # CLIENT_VERSION = "0001"
 TRACKER_IP = '172.17.6.152'
-TRACKER_PORT = 10017
+TRACKER_PORT = 10020
 TRACKER_UDP_PORT = 12355
 
 
@@ -274,7 +274,7 @@ class Torrent:
         #print(len(data))
         self.chunks_data[chunk_num] = data
         print('getting the requested chunk....' + str(chunk_num))
-        print('Remaining chunk set length...' + str(len(remaining_chunk_set)))
+        print('Remaining chunk set length...' + str(len(self.remaining_chunk_set)))
         s.close()
         return
 
