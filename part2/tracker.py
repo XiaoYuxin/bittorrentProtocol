@@ -1,13 +1,12 @@
 # pytorrent-tracker.py
 # A bittorrent tracker
 
-from threading import Thread
-from socket import inet_aton
 import socket
 import SocketServer
 import json
 import util
 from Queue import Queue
+
 
 def add_file_chunk(filename, chunk_num):
     if filename in files:
@@ -48,22 +47,10 @@ def delete_peer(pid):
             delete_file_chunk(data[1], int(data[3]))
 
 
-# def expand_peer_list(peer_list):
-#     """ Return an expanded peer list suitable for the client, given the peer list. """
-#
-#     peers = []
-#     for peer in peer_list:
-#         p = dict()
-#         p["pid"] = int()
-#         peers.append(p)
-#     return peers
-
-
 def make_peer_list(file_chunks):
     peer_list = dict()
     for info_hash in file_chunks:
         peer_list[info_hash] = torrents[info_hash]
-    # print(peer_list)
     return peer_list
 
 
@@ -83,8 +70,6 @@ def get_data_loop(pid, sock):
     while True:
         message = request_queues[pid].get(True)
         encoded = util.encode_request(message)
-        # print("get request from queue: ")
-        # print(message)
         sock.sendall(('%16s' % len(encoded)).encode('utf-8'))
         sock.sendall(encoded)
 
@@ -95,25 +80,6 @@ def get_data_loop(pid, sock):
             data += newdata
 
         data_queues[message['req_pid']].put(data, True)
-        # print("get data of chunk " + str(message["chunk_num"]) + " and put in data queue " + str(message['req_pid']))
-
-
-# def process_interest_loop(pid, sock):
-#     while True:
-#         length = int(sock.recv(16).decode('utf-8'))
-#         data = b''
-#         while len(data) < length:
-#             newdata = sock.recv(1024)
-#             data += newdata
-#         message = util.decode_request(data)
-#
-#         message["receiver_pid"] = pid
-#         print(message)
-#         request_queues[message["pid"]].put(message, True)
-#         chunk_data = data_queues[pid].get(True)
-#         encoded = util.encode_request(chunk_data)
-#         sock.sendall(('%16s' % len(encoded)).encode('utf-8'))
-#         sock.sendall(encoded)
 
 
 class TCPHandler(SocketServer.BaseRequestHandler):
@@ -151,9 +117,6 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                     print_chunks_list.append(int(data[3]))
                     add_file_chunk(data[1], int(data[3]))
                     temp = temp + 1
-                # print(print_chunks_list)
-                # print(files)
-                # print(torrents)
                 self.request.sendall(generate_ack())
             elif message['type'] == 2:  # query for content
                 peers = make_peer_list(message['chunks'])
@@ -180,16 +143,14 @@ class TCPHandler(SocketServer.BaseRequestHandler):
                 get_data_loop(pid, self.request)
             elif message['type'] == 6:  # ask for data
                 request_queues[message["res_pid"]].put(message, True)
-                # print("received request and put in queue: ")
-                # print(message)
+                print("received request from " + str(message["req_pid"]) + " to " + str(message["res_pid"]) +
+                      " of chunk " + str(message["chunk_num"]))
 
                 chunk_data = data_queues[message['req_pid']].get(True)
-                print("!!!!!!!!")
                 self.request.sendall(('%16s' % len(chunk_data)).encode('utf-8'))
                 self.request.sendall(chunk_data)
-                print("finished request req id " + str(message["req_pid"]) + " res id " + str(message["res_pid"]) +
+                print("finished request from " + str(message["req_pid"]) + " to " + str(message["res_pid"]) +
                       " of chunk " + str(message["chunk_num"]))
-                # process_interest_loop(message['pid'], self.request)
             else:
                 self.request.sendall(generate_error())
         self.request.close()
